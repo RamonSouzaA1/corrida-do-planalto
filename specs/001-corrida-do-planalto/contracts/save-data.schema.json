@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Progresso guardado no aparelho",
+  "type": "object",
+  "required": ["version", "bestScore", "cityReached", "lives", "soundOn"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "type": "integer", "const": 1 },
+    "bestScore": { "type": "integer", "minimum": 0 },
+    "cityReached": { "enum": ["brasilia", "assuncao", "buenos-aires", "washington"] },
+    "lives": { "type": "integer", "minimum": 0 },
+    "soundOn": { "type": "boolean" }
+  }
+}

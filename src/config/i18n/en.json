@@ -1,0 +1,71 @@
+{
+  "title": {
+    "name": "Corrida do Planalto",
+    "start": "Start",
+    "bestScore": "Best: {score}",
+    "controls": "Arrows: change lane, jump and slide",
+    "pauseHint": "Esc or P: pause   M: sound",
+    "controlsTouch": "Swipe: change lane, jump and slide",
+    "pauseHintTouch": "II button: pause"
+  },
+  "pause": {
+    "title": "Paused",
+    "resume": "Resume"
+  },
+  "gameOver": {
+    "title": "Game over",
+    "escaped": "{target} got away! Get closer",
+    "finalScore": "Score: {score}",
+    "bestScore": "Best: {score}",
+    "newRecord": "New record!",
+    "playAgain": "Play again",
+    "noLives": "Out of lives!",
+    "backToStart": "Back to the start: {city}",
+    "toTitle": "Back to title"
+  },
+  "lifeLost": {
+    "title": "Life lost",
+    "livesLeft": "Lives left: {lives}",
+    "restartIn": "Retry in {city}",
+    "tryAgain": "Try again"
+  },
+  "cities": {
+    "brasilia": "Brasília",
+    "assuncao": "Asunción",
+    "buenos-aires": "Buenos Aires",
+    "washington": "Washington"
+  },
+  "city": {
+    "welcome": "Welcome to {city}!",
+    "goal": "Catch up with {target}!"
+  },
+  "levelWon": {
+    "title": "Level complete!",
+    "escapedByLittle": "{target} barely escaped!",
+    "nextCity": "Next stop: {city}",
+    "next": "Continue"
+  },
+  "victory": {
+    "title": "Victory!",
+    "caught": "{target} was arrested in {city}!",
+    "chaseOver": "The chase is over.",
+    "playAgain": "Play from the start"
+  },
+  "hud": {
+    "sound": "Sound",
+    "muted": "Muted",
+    "score": "Score: {score}",
+    "distance": "{target}",
+    "runway": "Boarding runway!",
+    "energy": "Energy",
+    "lives": "Lives: {lives}",
+    "shielded": "Shield used!",
+    "extraLife": "+1 life!",
+    "caught": "Gotcha!",
+    "powerUp": {
+      "flag": "Shield!",
+      "poster": "Turbo!",
+      "moneyBag": "{target} fell!"
+    }
+  }
+}

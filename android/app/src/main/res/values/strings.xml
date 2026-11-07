@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Corrida do Planalto</string>
+    <string name="title_activity_main">Corrida do Planalto</string>
+    <string name="package_name">br.com.planalto.corrida</string>
+    <string name="custom_url_scheme">br.com.planalto.corrida</string>
+</resources>

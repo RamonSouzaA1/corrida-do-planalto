@@ -1,0 +1,7 @@
+{
+  "file": "fonts/pixel-font.png",
+  "width": 6,
+  "height": 11,
+  "charsPerRow": 16,
+  "chars": "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ .,:!?-'/()+<>^¡¿ÁÀÂÃÉÊÍÓÔÕÚÑÇ"
+}

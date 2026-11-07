@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Configuração dos personagens",
+  "type": "object",
+  "required": ["runner", "target", "guard", "reporter"],
+  "additionalProperties": false,
+  "properties": {
+    "runner": { "$ref": "#/$defs/character" },
+    "target": { "$ref": "#/$defs/character" },
+    "guard": { "$ref": "#/$defs/character" },
+    "reporter": { "$ref": "#/$defs/character" }
+  },
+  "$defs": {
+    "character": {
+      "type": "object",
+      "required": ["name", "sprite"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "sprite": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

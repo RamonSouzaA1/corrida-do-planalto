@@ -1,0 +1,149 @@
+[
+  {
+    "id": "brasilia",
+    "order": 1,
+    "language": "pt",
+    "palette": [
+      "#0b0b14",
+      "#ffffff",
+      "#1d2b53",
+      "#3b5dc9",
+      "#73c2fb",
+      "#c8ecff",
+      "#2e6b30",
+      "#5bb33b",
+      "#4a4a52",
+      "#7a7a85",
+      "#b8b8c0",
+      "#ffd23f",
+      "#f77f00",
+      "#d62828",
+      "#f2c39b",
+      "#6b3e26"
+    ],
+    "background": "brasilia",
+    "obstacles": [
+      { "id": "cone", "type": "low", "sprite": "cone" },
+      { "id": "faixa", "type": "high", "sprite": "faixa" },
+      { "id": "tapume", "type": "high", "sprite": "tapume" },
+      { "id": "jornalista", "type": "blocker", "sprite": "jornalista", "character": "reporter" },
+      { "id": "guarda", "type": "blocker", "sprite": "guarda", "character": "guard" },
+      { "id": "carro-oficial", "type": "blocker", "sprite": "carro-oficial" }
+    ],
+    "collectibles": [{ "id": "moeda", "type": "coin", "sprite": "moeda" }],
+    "lengthMeters": 1000,
+    "catchable": false
+  },
+  {
+    "id": "assuncao",
+    "order": 2,
+    "language": "es",
+    "palette": [
+      "#0b0b14",
+      "#ffffff",
+      "#1d2b53",
+      "#3b5dc9",
+      "#f6a85c",
+      "#ffe2b0",
+      "#1e5b48",
+      "#5bb33b",
+      "#8a5a44",
+      "#7a7a85",
+      "#d9b384",
+      "#ffd23f",
+      "#e2572b",
+      "#d62828",
+      "#f2c39b",
+      "#6b3e26"
+    ],
+    "background": "assuncao",
+    "obstacles": [
+      { "id": "cerca", "type": "low", "sprite": "cerca" },
+      { "id": "barraca", "type": "high", "sprite": "barraca" },
+      { "id": "moto", "type": "blocker", "sprite": "moto" },
+      { "id": "jornalista", "type": "blocker", "sprite": "jornalista", "character": "reporter" },
+      { "id": "guarda", "type": "blocker", "sprite": "guarda", "character": "guard" }
+    ],
+    "collectibles": [
+      { "id": "flamula", "type": "coin", "sprite": "flamula" },
+      { "id": "terere", "type": "coin", "sprite": "terere" }
+    ],
+    "lengthMeters": 1000,
+    "catchable": false
+  },
+  {
+    "id": "buenos-aires",
+    "order": 3,
+    "language": "es",
+    "palette": [
+      "#0b0b14",
+      "#ffffff",
+      "#1d2b53",
+      "#3b5dc9",
+      "#a7a2d9",
+      "#ece4f4",
+      "#7d4ea8",
+      "#5bb33b",
+      "#3d3a45",
+      "#7a7a85",
+      "#ddd0b4",
+      "#ffd23f",
+      "#c9822f",
+      "#d62828",
+      "#f2c39b",
+      "#6b3e26"
+    ],
+    "background": "buenos-aires",
+    "obstacles": [
+      { "id": "jornais", "type": "low", "sprite": "jornais" },
+      { "id": "banca", "type": "high", "sprite": "banca" },
+      { "id": "bonde", "type": "blocker", "sprite": "bonde" },
+      { "id": "carro-70", "type": "blocker", "sprite": "carro-70" },
+      { "id": "jornalista", "type": "blocker", "sprite": "jornalista", "character": "reporter" },
+      { "id": "guarda", "type": "blocker", "sprite": "guarda", "character": "guard" }
+    ],
+    "collectibles": [
+      { "id": "moeda", "type": "coin", "sprite": "moeda" },
+      { "id": "disco", "type": "coin", "sprite": "disco" }
+    ],
+    "lengthMeters": 1000,
+    "catchable": false
+  },
+  {
+    "id": "washington",
+    "order": 4,
+    "language": "en",
+    "palette": [
+      "#0b0b14",
+      "#ffffff",
+      "#1d2b53",
+      "#3b5dc9",
+      "#2a1f4f",
+      "#6f7fae",
+      "#24432f",
+      "#5bb33b",
+      "#2b2b35",
+      "#7a7a85",
+      "#ece6d6",
+      "#ffd23f",
+      "#ff9f1c",
+      "#d62828",
+      "#f2c39b",
+      "#6b3e26"
+    ],
+    "background": "washington",
+    "obstacles": [
+      { "id": "grade", "type": "low", "sprite": "grade" },
+      { "id": "fita", "type": "high", "sprite": "fita" },
+      { "id": "viatura", "type": "blocker", "sprite": "viatura" },
+      { "id": "guarda", "type": "blocker", "sprite": "guarda", "character": "guard" },
+      { "id": "jornalista", "type": "blocker", "sprite": "jornalista", "character": "reporter" }
+    ],
+    "collectibles": [
+      { "id": "nota", "type": "coin", "sprite": "nota" },
+      { "id": "bandeirola", "type": "coin", "sprite": "bandeirola" }
+    ],
+    "lengthMeters": 1000,
+    "catchable": true
+  }
+]

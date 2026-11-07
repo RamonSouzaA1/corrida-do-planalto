@@ -1,0 +1,6 @@
+{
+  "runner": { "name": "Chico do Planalto", "sprite": "chico" },
+  "target": { "name": "Caio Herdeiro", "sprite": "caio" },
+  "guard": { "name": "Guarda de segurança", "sprite": "guarda" },
+  "reporter": { "name": "Jornalista", "sprite": "jornalista" }
+}

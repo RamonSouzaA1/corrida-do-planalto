@@ -1,0 +1,71 @@
+{
+  "title": {
+    "name": "Corrida do Planalto",
+    "start": "Iniciar",
+    "bestScore": "Récord: {score}",
+    "controls": "Flechas: cambiar de carril, saltar y deslizarse",
+    "pauseHint": "Esc o P: pausa   M: sonido",
+    "controlsTouch": "Desliza: cambiar de carril, saltar y deslizarse",
+    "pauseHintTouch": "Botón II: pausa"
+  },
+  "pause": {
+    "title": "Pausa",
+    "resume": "Continuar"
+  },
+  "gameOver": {
+    "title": "Fin del juego",
+    "escaped": "¡{target} huyó! Acércate más",
+    "finalScore": "Puntaje: {score}",
+    "bestScore": "Récord: {score}",
+    "newRecord": "¡Nuevo récord!",
+    "playAgain": "Jugar de nuevo",
+    "noLives": "¡Se acabaron las vidas!",
+    "backToStart": "Volviendo al inicio: {city}",
+    "toTitle": "Volver al inicio"
+  },
+  "lifeLost": {
+    "title": "Vida perdida",
+    "livesLeft": "Vidas restantes: {lives}",
+    "restartIn": "Reintentar en {city}",
+    "tryAgain": "Intentar de nuevo"
+  },
+  "cities": {
+    "brasilia": "Brasilia",
+    "assuncao": "Asunción",
+    "buenos-aires": "Buenos Aires",
+    "washington": "Washington"
+  },
+  "city": {
+    "welcome": "¡Bienvenido a {city}!",
+    "goal": "¡Alcanza a {target}!"
+  },
+  "levelWon": {
+    "title": "¡Fase superada!",
+    "escapedByLittle": "¡{target} escapó por poco!",
+    "nextCity": "Próximo destino: {city}",
+    "next": "Continuar"
+  },
+  "victory": {
+    "title": "¡Victoria!",
+    "caught": "¡{target} fue arrestado en {city}!",
+    "chaseOver": "La persecución terminó.",
+    "playAgain": "Jugar desde el inicio"
+  },
+  "hud": {
+    "sound": "Sonido",
+    "muted": "Mudo",
+    "score": "Puntos: {score}",
+    "distance": "{target}",
+    "runway": "¡Pista de embarque!",
+    "energy": "Energía",
+    "lives": "Vidas: {lives}",
+    "shielded": "¡Escudo usado!",
+    "extraLife": "¡+1 vida!",
+    "caught": "¡Te atrapé!",
+    "powerUp": {
+      "flag": "¡Escudo!",
+      "poster": "¡Turbo!",
+      "moneyBag": "¡{target} se cayó!"
+    }
+  }
+}
