@@ -32,7 +32,7 @@ emulação do Chrome DevTools.
   é um problema com esses tempos, e dividi-lo seria complexidade sem necessidade (Constituição,
   princípio I).
 - **60 quadros por segundo**: atendido em todos os cenários medidos, inclusive com a CPU 4x mais
-  lenta. O jogo é leve (320 x 180, poucos sprites).
+  lenta. O jogo é leve (180 x 320, poucos sprites).
 - **Resposta a comando em menos de 100 ms**: não foi medida diretamente. Pelo desenho, um comando
   espera no máximo um passo de tempo fixo (16,7 ms) para entrar na lógica e um quadro (16,7 ms) para
   aparecer, cerca de 33 ms a 60 fps, mais a latência do próprio aparelho e da tela, que o teste

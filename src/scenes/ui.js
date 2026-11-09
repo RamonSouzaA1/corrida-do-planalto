@@ -16,7 +16,24 @@ export function controlsHint(scene) {
   const keys = scene.sys.game.device.input.touch
     ? ['title.controlsTouch', 'title.pauseHintTouch']
     : ['title.controls', 'title.pauseHint'];
-  return keys.map((key) => t(key)).join('\n');
+  return wrapText(keys.map((key) => t(key)).join('\n'));
+}
+
+// Quebra o texto em linhas de até maxChars letras, sem cortar palavras: a tela em retrato tem
+// 180 px de largura, ou 30 letras da fonte.
+export function wrapText(text, maxChars = 28) {
+  return String(text)
+    .split('\n')
+    .flatMap((paragraph) => {
+      const lines = [''];
+      for (const word of paragraph.split(' ')) {
+        const line = lines[lines.length - 1];
+        if (line && line.length + 1 + word.length > maxChars) lines.push(word);
+        else lines[lines.length - 1] = line ? `${line} ${word}` : word;
+      }
+      return lines;
+    })
+    .join('\n');
 }
 
 export function setPixelText(bitmapText, text) {
@@ -43,7 +60,7 @@ export function onConfirm(scene, action, delayMs = 300) {
 }
 
 // Posição do botão de silenciar na corrida e na pausa (a pausa o cobre no mesmo lugar).
-export const MUTE_BUTTON = { x: 262, y: 2 };
+export const MUTE_BUTTON = { x: 124, y: 2 };
 
 // Botão de silenciar no canto da tela, que também responde à tecla M (FR-015; key: false só
 // com o botão). O estado aparece

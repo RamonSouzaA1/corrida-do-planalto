@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import spriteManifest from '../assets/sprites/sprites.json';
 import { DEFAULT_CHARACTERS, characters } from '../config/characters.js';
 import cities from '../config/cities.json';
 import { fleeSpeed, proximity } from '../core/chase.js';
@@ -12,50 +13,56 @@ import { COMMANDS, createCommandQueue } from '../input/commands.js';
 import { bindKeyboard } from '../input/keyboard.js';
 import { bindTouch } from '../input/touch.js';
 import { watchPageFocus } from '../platform/lifecycle.js';
-import { SFX, backgroundKey } from './BootScene.js';
-import { MUTE_BUTTON, addMuteControls, pixelText, setPixelText } from './ui.js';
+import { PARALLAX_LAYERS, SFX, backgroundKey } from './BootScene.js';
+import {
+  FARTHEST_Z,
+  FEET_Y,
+  HORIZON_Y,
+  LANE_WIDTH,
+  NEAREST_Z,
+  VIEW,
+  drawRoad,
+  project,
+} from './road.js';
+import { MUTE_BUTTON, addMuteControls, pixelText, setPixelText, wrapText } from './ui.js';
 
-// Visão lateral: Chico corre para a direita; a faixa 0 é a mais distante (no alto da pista),
-// que fica à esquerda de quem corre para a direita.
-const WIDTH = 320;
-const PIXELS_PER_METER = 20;
-const RUNNER_X = 64;
-const TRACK_TOP = 112;
-const LANE_HEIGHT = 20;
-const JUMP_HEIGHT = 22;
-const COIN_LIFT = 10;
-const PARALLAX = [
-  ['far', 0.1],
-  ['mid', 0.3],
-  ['near', 0.6],
-  ['track', 1],
-];
+// Visão de trás, em retrato (estilo Subway Surfers): Chico corre para o fundo da tela, de costas
+// para a câmera; a faixa 0 fica à esquerda. Os itens da pista saem do horizonte e crescem até
+// passar por ele. Toda a geometria da pista está em road.js.
+const CENTER_X = VIEW.width / 2;
+const JUMP_HEIGHT = 34;
+const COIN_LIFT = 14;
+const POWER_UP_LIFT = 6;
+// Camadas do fundo acima do horizonte; deslocam-se um pouco quando Chico troca de faixa.
+const PARALLAX = [0.04, 0.1, 0.2];
+// Árvores e postes dos dois lados da pista, a cada tantos metros.
+const SIDE_SPACING_METERS = 8;
+const SIDE_LANE_OFFSET = 2.4;
+
+// Profundidade de desenho: quem está mais longe fica atrás.
+const depthAt = (z) => 500 - z;
+const HUD_DEPTH = 1000;
 
 // Botão de pausa no canto superior direito, só em aparelhos de toque.
-const PAUSE_BUTTON = { x: 298, y: 2, width: 20, height: 16 };
+const PAUSE_BUTTON = { x: 158, y: 2, width: 20, height: 16 };
 
-// Caio aparece à frente de Chico, mais longe quanto maior a distância, até a borda da tela.
-const CAIO_GAP = 24;
-const CAIO_PIXELS_PER_METER = 0.5;
-const CAIO_MAX_X = WIDTH - 10;
+// Caio corre à frente de Chico, mais longe quanto maior a distância, e oscila entre as faixas.
+const CAIO_MIN_Z = 2.5;
+const CAIO_METERS_PER_DISTANCE = 0.025;
+const CAIO_SWAY_LANES = 0.6;
 // Barra de distância até Caio no topo (FR-008): cheia quando Chico o alcança.
-const BAR = { x: 88, y: 6, width: 120, height: 6 };
-// O nome de Caio ao lado da barra tem até este tamanho, para não encostar nos botões do canto.
+const BAR = { x: 6, y: 24, width: 110, height: 6 };
+// O nome de Caio ao lado da barra tem até este tamanho, para caber na tela.
 const BAR_LABEL_MAX_CHARS = 8;
-// Porta do avião, em relação ao canto inferior esquerdo do sprite de 64 x 32. O avião fica à
-// frente do fim da pista de Chico, onde Caio chega primeiro.
-const PLANE_DOOR = { x: 17, y: -12 };
-const PLANE_AHEAD = 120;
+// O avião espera além do fim da pista de Chico, onde Caio chega primeiro.
+const PLANE_AHEAD_METERS = 5;
 // HUD na parte inferior (FR-008): energia à esquerda, vidas à direita.
-const HUD_BOTTOM_Y = 169;
-const ENERGY_PIP = { x: 52, y: 170, width: 10, height: 6, gap: 2 };
-const POWER_UP_LIFT = 4;
+const HUD_BOTTOM_Y = 307;
+const ENERGY_PIP = { x: 52, y: 308, width: 10, height: 6, gap: 2 };
 // O escudo pisca nos últimos segundos, para avisar que vai acabar.
 const SHIELD_WARNING_SECONDS = 2;
 // Efeitos e HUD usam só as cores iguais em todas as paletas (cities.json), para cada cenário
 // continuar com no máximo 16 cores (FR-014).
-
-const laneFeetY = (lane) => TRACK_TOP + LANE_HEIGHT * (lane + 1) - 2;
 
 export class RunScene extends Phaser.Scene {
   constructor() {
@@ -74,24 +81,23 @@ export class RunScene extends Phaser.Scene {
     this.finished = false;
 
     const { background } = this.run.city;
-    this.layers = PARALLAX.map(([layer, factor]) => {
-      const isTrack = layer === 'track';
-      const sprite = this.add
-        .tileSprite(
-          0,
-          isTrack ? TRACK_TOP : 0,
-          WIDTH,
-          isTrack ? 68 : TRACK_TOP,
-          backgroundKey(background, layer),
-        )
+    this.layers = PARALLAX_LAYERS.map((layer, i) => ({
+      sprite: this.add
+        .tileSprite(0, 0, VIEW.width, HORIZON_Y, backgroundKey(background, layer))
         .setOrigin(0, 0)
-        .setDepth(-100);
-      return { sprite, factor };
-    });
+        .setDepth(-100),
+      factor: PARALLAX[i],
+    }));
+    this.road = this.add.graphics().setDepth(-50);
+    this.roadLine = this.run.city.road.line;
+    this.sideKey = `margem-${background}`;
+    this.sideSprites = [];
 
     this.runnerKey = this.characterSprite('runner');
-    this.runnerY = laneFeetY(this.run.lane);
-    this.runner = this.add.sprite(RUNNER_X, this.runnerY, this.runnerKey).setOrigin(0.5, 1);
+    // Posição de Chico entre as faixas (0 a 2), suavizada na troca de faixa.
+    this.runnerLane = this.run.lane;
+    this.shadow = this.add.ellipse(0, FEET_Y, 30, 8, 0x0b0b14, 0.35);
+    this.runner = this.add.sprite(CENTER_X, FEET_Y, this.runnerKey).setOrigin(0.5, 1);
     this.playRunnerAnimation();
 
     this.obstacleSprites = new Map();
@@ -102,26 +108,26 @@ export class RunScene extends Phaser.Scene {
     this.effects = this.add.graphics();
 
     this.caioKey = this.characterSprite('target');
-    this.caioX = this.caioTargetX();
-    this.caio = this.add.sprite(this.caioX, laneFeetY(1), this.caioKey).setOrigin(0.5, 1);
-    this.caio.setDepth(laneFeetY(1) - 0.5);
+    this.caioZ = this.caioTargetZ();
+    this.caio = this.add.sprite(CENTER_X, HORIZON_Y, this.caioKey).setOrigin(0.5, 1);
     if (this.anims.exists(`${this.caioKey}-run`)) this.caio.play(`${this.caioKey}-run`);
     this.plane = null;
     this.boarding = false;
 
-    this.scoreText = pixelText(this, 4, 4, t('hud.score', { score: 0 })).setDepth(1000);
+    this.scoreText = pixelText(this, 4, 4, t('hud.score', { score: 0 })).setDepth(HUD_DEPTH);
     this.shownScore = 0;
-    this.distanceBar = this.add.graphics().setDepth(1000);
+    this.distanceBar = this.add.graphics().setDepth(HUD_DEPTH);
     pixelText(
       this,
       BAR.x + BAR.width + 4,
-      2,
+      BAR.y - 4,
       t('hud.distance').slice(0, BAR_LABEL_MAX_CHARS),
-    ).setDepth(1000);
+    ).setDepth(HUD_DEPTH);
 
-    pixelText(this, 4, HUD_BOTTOM_Y, t('hud.energy')).setDepth(1000);
-    this.energyBar = this.add.graphics().setDepth(1000);
-    this.livesText = pixelText(this, WIDTH - 4, HUD_BOTTOM_Y, '', { originX: 1 }).setDepth(1000);
+    pixelText(this, 4, HUD_BOTTOM_Y, t('hud.energy')).setDepth(HUD_DEPTH);
+    this.energyBar = this.add.graphics().setDepth(HUD_DEPTH);
+    this.livesText = pixelText(this, VIEW.width - 4, HUD_BOTTOM_Y, '', { originX: 1 });
+    this.livesText.setDepth(HUD_DEPTH);
     this.shownLives = null;
 
     // Os textos da cidade (chegada, pista de embarque, prisão) vêm no idioma dela (FR-020).
@@ -149,12 +155,12 @@ export class RunScene extends Phaser.Scene {
       .rectangle(x, y, width, height, 0x0b0b14, 0.7)
       .setOrigin(0, 0)
       .setStrokeStyle(1, 0xffffff)
-      .setDepth(1000);
-    pixelText(this, x + width / 2, y + 3, 'II', { originX: 0.5 }).setDepth(1001);
+      .setDepth(HUD_DEPTH);
+    pixelText(this, x + width / 2, y + 3, 'II', { originX: 0.5 }).setDepth(HUD_DEPTH + 1);
     this.add
-      .zone(x - 4, y, width + 8, height + 8)
+      .zone(x - 2, y, width + 4, height + 8)
       .setOrigin(0, 0)
-      .setDepth(1002)
+      .setDepth(HUD_DEPTH + 2)
       .setInteractive()
       .on('pointerdown', () => this.onCommand(COMMANDS.PAUSE));
   }
@@ -258,8 +264,8 @@ export class RunScene extends Phaser.Scene {
 
   // Texto curto que sobe acima de Chico e some.
   popup(text, tint) {
-    const label = pixelText(this, RUNNER_X, this.runner.y - 34, text, { originX: 0.5 });
-    label.setDepth(1000).setTint(tint);
+    const label = pixelText(this, CENTER_X, this.runner.y - 62, wrapText(text), { originX: 0.5 });
+    label.setCenterAlign().setDepth(HUD_DEPTH).setTint(tint);
     this.tweens.add({
       targets: label,
       y: label.y - 14,
@@ -277,8 +283,8 @@ export class RunScene extends Phaser.Scene {
       t('city.welcome', { city: cityName }, this.language),
       t('city.goal', {}, this.language),
     ].join('\n');
-    const intro = pixelText(this, WIDTH / 2, 40, text, { originX: 0.5 }).setCenterAlign();
-    intro.setDepth(1000).setTint(0xffd23f);
+    const intro = pixelText(this, CENTER_X, 50, wrapText(text), { originX: 0.5 }).setCenterAlign();
+    intro.setDepth(HUD_DEPTH).setTint(0xffd23f);
     this.tweens.add({
       targets: intro,
       alpha: 0,
@@ -288,12 +294,11 @@ export class RunScene extends Phaser.Scene {
     });
   }
 
-  // Confronto do avião: aviso na tela e o avião parado no fim da pista de embarque.
+  // Confronto do avião: aviso na tela, divisórias da pista de embarque e o avião parado no fim.
   showRunway() {
-    const banner = pixelText(this, WIDTH / 2, 24, t('hud.runway', {}, this.language), {
-      originX: 0.5,
-    });
-    banner.setDepth(1000).setTint(0xffd23f);
+    const text = wrapText(t('hud.runway', {}, this.language));
+    const banner = pixelText(this, CENTER_X, 50, text, { originX: 0.5 }).setCenterAlign();
+    banner.setDepth(HUD_DEPTH).setTint(0xffd23f);
     this.tweens.add({
       targets: banner,
       alpha: 0,
@@ -302,13 +307,12 @@ export class RunScene extends Phaser.Scene {
       repeat: 4,
       onComplete: () => banner.destroy(),
     });
-    this.plane = this.add.sprite(0, laneFeetY(0), 'aviao').setOrigin(0, 1);
-    this.plane.setDepth(laneFeetY(0) - 1);
+    this.roadLine = this.run.city.road.runwayLine;
+    this.plane = this.add.sprite(CENTER_X, HORIZON_Y, 'aviao').setOrigin(0.5, 1);
   }
 
-  planeX() {
-    const metersLeft = this.run.city.lengthMeters - this.run.metersRun;
-    return Math.round(RUNNER_X + PLANE_AHEAD + metersLeft * PIXELS_PER_METER);
+  planeZ() {
+    return this.run.city.lengthMeters - this.run.metersRun + PLANE_AHEAD_METERS;
   }
 
   finish(event) {
@@ -340,22 +344,20 @@ export class RunScene extends Phaser.Scene {
   // Caio sobe a escada, entra no avião e o avião decola (FR-010: nas cidades 1 a 3 ele sempre foge).
   boardPlane() {
     this.boarding = true;
-    const door = {
-      x: this.plane.x + PLANE_DOOR.x,
-      y: this.plane.y + PLANE_DOOR.y,
-    };
+    const { plane } = this;
+    const doorY = plane.y - spriteManifest.aviao.doorHeight * plane.scale;
     if (this.anims.exists(`${this.caioKey}-board`)) this.caio.play(`${this.caioKey}-board`);
-    this.caio.setDepth(this.plane.depth + 0.5);
+    this.caio.setDepth(plane.depth + 0.5);
     this.tweens.chain({
       targets: this.caio,
       tweens: [
-        { x: door.x - 12, y: this.plane.y, duration: 250 },
-        { x: door.x, y: door.y, duration: 450 },
+        { x: plane.x, y: plane.y, scale: plane.scale * 0.8, duration: 300 },
+        { y: doorY, scale: plane.scale * 0.6, duration: 450 },
         { alpha: 0, duration: 200 },
         {
-          targets: this.plane,
-          x: WIDTH + 40,
-          y: this.plane.y - 50,
+          targets: plane,
+          y: HORIZON_Y - 40,
+          scale: plane.scale * 0.3,
           duration: 1100,
           ease: 'Quad.easeIn',
         },
@@ -363,55 +365,53 @@ export class RunScene extends Phaser.Scene {
     });
   }
 
-  caioTargetX() {
-    const x = RUNNER_X + CAIO_GAP + this.run.distanceToTarget * CAIO_PIXELS_PER_METER;
-    const limit = this.plane ? this.planeX() + PLANE_DOOR.x : CAIO_MAX_X;
-    return Math.min(x, CAIO_MAX_X, limit);
+  caioTargetZ() {
+    const z = CAIO_MIN_Z + this.run.distanceToTarget * CAIO_METERS_PER_DISTANCE;
+    return this.plane ? Math.min(z, this.planeZ() - 1) : z;
   }
 
   draw(delta) {
     const { run } = this;
-    const scrolled = run.metersRun * PIXELS_PER_METER;
-    for (const { sprite, factor } of this.layers) sprite.tilePositionX = scrolled * factor;
+    drawRoad(this.road, run.city, run.metersRun, { line: this.roadLine });
 
     // Troca de faixa suave; o pulo é um arco ao longo da duração da ação.
-    const targetY = laneFeetY(run.lane);
-    this.runnerY += (targetY - this.runnerY) * Math.min(1, delta / 50);
+    this.runnerLane += (run.lane - this.runnerLane) * Math.min(1, delta / 50);
+    const runnerX = CENTER_X + (this.runnerLane - 1) * LANE_WIDTH;
+    for (const { sprite, factor } of this.layers) {
+      sprite.tilePositionX = (this.runnerLane - 1) * LANE_WIDTH * factor;
+    }
     let lift = 0;
     if (run.action === ACTIONS.JUMP) {
       const progress = 1 - run.actionTimeLeft / run.balance.jumpSeconds;
       lift = Math.sin(progress * Math.PI) * JUMP_HEIGHT;
     }
-    this.runner.setPosition(RUNNER_X, Math.round(this.runnerY - lift));
-    this.runner.setDepth(this.runnerY + 0.5);
+    this.runner.setPosition(Math.round(runnerX), Math.round(FEET_Y - lift));
+    this.runner.setDepth(depthAt(0) + 0.5);
+    this.shadow.setPosition(Math.round(runnerX), FEET_Y).setDepth(depthAt(0) + 0.4);
+    this.shadow.setScale(1 - lift / (JUMP_HEIGHT * 2));
     if (!this.finished) this.playRunnerAnimation();
 
-    this.drawItems(run.track.obstacles, this.obstacleSprites, (obstacle) => {
+    this.drawSides();
+    this.drawItems(run.track.obstacles, this.obstacleSprites, 0, (obstacle) => {
       const key = obstacle.character ? this.characterSprite(obstacle.character) : obstacle.sprite;
-      const sprite = this.add.sprite(0, laneFeetY(obstacle.lane), key).setOrigin(0.5, 1);
+      const sprite = this.add.sprite(0, 0, key);
       if (this.anims.exists(`${key}-idle`)) sprite.play(`${key}-idle`);
-      return sprite.setDepth(laneFeetY(obstacle.lane));
+      return sprite;
     });
     // Moedas e coletáveis temáticos da cidade (FR-013).
-    this.drawItems(run.track.coins, this.coinSprites, (coin) => {
+    this.drawItems(run.track.coins, this.coinSprites, COIN_LIFT, (coin) => {
       const key = coin.sprite ?? 'moeda';
-      const sprite = this.add
-        .sprite(0, laneFeetY(coin.lane) - COIN_LIFT, key)
-        .setOrigin(0.5, 1)
-        .setDepth(laneFeetY(coin.lane) - 1);
+      const sprite = this.add.sprite(0, 0, key);
       if (this.anims.exists(`${key}-spin`)) sprite.play(`${key}-spin`);
       return sprite;
     });
-    this.drawItems(run.track.powerUps, this.powerUpSprites, (item) => {
-      const sprite = this.add
-        .sprite(0, laneFeetY(item.lane) - POWER_UP_LIFT, item.sprite)
-        .setOrigin(0.5, 1)
-        .setDepth(laneFeetY(item.lane) - 1);
+    this.drawItems(run.track.powerUps, this.powerUpSprites, POWER_UP_LIFT, (item) => {
+      const sprite = this.add.sprite(0, 0, item.sprite);
       if (this.anims.exists(`${item.sprite}-idle`)) sprite.play(`${item.sprite}-idle`);
       return sprite;
     });
 
-    if (this.plane && !this.boarding) this.plane.x = this.planeX();
+    if (this.plane && !this.boarding) this.place(this.plane, 0, this.planeZ());
     this.drawCaio(delta);
     this.drawEffects();
 
@@ -424,6 +424,34 @@ export class RunScene extends Phaser.Scene {
     this.drawLives();
   }
 
+  // Põe um sprite no chão da pista, na faixa e na distância dadas, com o tamanho da perspectiva.
+  place(sprite, laneOffset, z, lift = 0) {
+    const { x, y, scale } = project(laneOffset, z);
+    sprite
+      .setOrigin(0.5, 1)
+      .setPosition(Math.round(x), Math.round(y - lift * scale))
+      .setScale(scale)
+      .setDepth(depthAt(z));
+  }
+
+  // Árvores e postes das margens, reaproveitando os mesmos sprites a cada quadro.
+  drawSides() {
+    if (!this.textures.exists(this.sideKey)) return;
+    const { metersRun } = this.run;
+    let used = 0;
+    const first = Math.ceil((metersRun + NEAREST_Z) / SIDE_SPACING_METERS);
+    for (let n = first; n * SIDE_SPACING_METERS - metersRun < FARTHEST_Z; n += 1) {
+      for (const side of [-1, 1]) {
+        if (!this.sideSprites[used]) this.sideSprites.push(this.add.sprite(0, 0, this.sideKey));
+        const sprite = this.sideSprites[used];
+        used += 1;
+        sprite.setVisible(true).setFrame((n + (side > 0 ? 1 : 0)) % 2);
+        this.place(sprite, side * SIDE_LANE_OFFSET, n * SIDE_SPACING_METERS - metersRun);
+      }
+    }
+    for (let i = used; i < this.sideSprites.length; i += 1) this.sideSprites[i].setVisible(false);
+  }
+
   drawEffects() {
     const { run } = this;
     const { x, y } = this.runner;
@@ -432,20 +460,21 @@ export class RunScene extends Phaser.Scene {
     if (run.shield > 0 && !blinking) {
       this.effects
         .lineStyle(1, 0xffffff, 0.9)
-        .strokeEllipse(x, y - 12, 22, 30)
+        .strokeEllipse(x, y - 24, 44, 58)
         .fillStyle(0x3b5dc9, 0.2)
-        .fillEllipse(x, y - 12, 22, 30);
+        .fillEllipse(x, y - 24, 44, 58);
     }
     if (run.boost > 0) {
-      // Linhas de velocidade atrás de Chico, deslocadas a cada quadro.
-      const offset = Math.floor(this.time.now / 40) % 6;
+      // Linhas de velocidade dos dois lados de Chico, deslocadas a cada quadro.
+      const offset = Math.floor(this.time.now / 40) % 8;
       this.effects.fillStyle(0xffd23f, 0.8);
-      for (const [dy, length] of [
-        [-20, 10],
-        [-13, 14],
-        [-6, 8],
+      for (const [dx, length] of [
+        [-24, 14],
+        [-18, 20],
+        [18, 20],
+        [24, 14],
       ]) {
-        this.effects.fillRect(x - 12 - length - offset, y + dy, length, 1);
+        this.effects.fillRect(x + dx, y - 20 + offset, 1, length);
       }
     }
   }
@@ -474,8 +503,9 @@ export class RunScene extends Phaser.Scene {
 
   drawCaio(delta) {
     if (this.boarding) return;
-    this.caioX += (this.caioTargetX() - this.caioX) * Math.min(1, delta / 200);
-    this.caio.x = Math.round(this.caioX);
+    this.caioZ += (this.caioTargetZ() - this.caioZ) * Math.min(1, delta / 200);
+    const sway = Math.sin(this.run.elapsed * 0.9) * CAIO_SWAY_LANES;
+    this.place(this.caio, sway, this.caioZ);
     // A animação de Caio acelera conforme ele foge mais rápido.
     if (!this.finished) {
       const speed = fleeSpeed(this.run.speed, this.run.distanceToTarget, this.run.balance);
@@ -500,24 +530,24 @@ export class RunScene extends Phaser.Scene {
       .fillRect(BAR.x + 1 + goal, BAR.y - 1, 1, BAR.height + 2);
   }
 
-  // Cria os sprites dos itens que entram na tela e destrói os que saíram.
-  drawItems(items, sprites, create) {
-    const screenX = (item) => RUNNER_X + (item.meters - this.run.metersRun) * PIXELS_PER_METER;
+  // Cria os sprites dos itens que entram no trecho visível e destrói os que passaram por Chico.
+  drawItems(items, sprites, lift, create) {
+    const { metersRun } = this.run;
     for (const [item, sprite] of sprites) {
-      const x = screenX(item);
-      if (x < -40) {
+      const z = item.meters - metersRun;
+      if (z < NEAREST_Z) {
         sprite.destroy();
         sprites.delete(item);
       } else {
-        sprite.x = Math.round(x);
+        this.place(sprite, item.lane - 1, z, lift);
       }
     }
-    const aheadMeters = (WIDTH + 40 - RUNNER_X) / PIXELS_PER_METER;
     for (const item of items) {
-      if (item.meters > this.run.metersRun + aheadMeters) break;
-      if (sprites.has(item) || screenX(item) < -40 || this.collected.has(item)) continue;
+      const z = item.meters - metersRun;
+      if (z > FARTHEST_Z) break;
+      if (sprites.has(item) || z < NEAREST_Z || this.collected.has(item)) continue;
       const sprite = create(item);
-      sprite.x = Math.round(screenX(item));
+      this.place(sprite, item.lane - 1, z, lift);
       sprites.set(item, sprite);
     }
   }

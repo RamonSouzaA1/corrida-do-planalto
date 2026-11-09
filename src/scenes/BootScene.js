@@ -5,7 +5,8 @@ import cities from '../config/cities.json';
 import { MUSIC_KEY, createAudio, unlockOnFirstGesture } from '../platform/audio.js';
 import { FONT_KEY } from './ui.js';
 
-export const BACKGROUND_LAYERS = ['far', 'mid', 'near', 'track'];
+// Camadas de paralaxe acima do horizonte; a pista é desenhada em road.js.
+export const PARALLAX_LAYERS = ['far', 'mid', 'near'];
 
 export const backgroundKey = (background, layer) => `bg-${background}-${layer}`;
 
@@ -38,7 +39,7 @@ export class BootScene extends Phaser.Scene {
       });
     }
     for (const { background } of cities) {
-      for (const layer of BACKGROUND_LAYERS) {
+      for (const layer of PARALLAX_LAYERS) {
         const url = assetUrl(`backgrounds/${background}/${layer}.png`);
         if (url) this.load.image(backgroundKey(background, layer), url);
       }

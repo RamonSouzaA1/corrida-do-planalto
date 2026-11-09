@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
-const GAME_WIDTH = 320;
-const GAME_HEIGHT = 180;
+const GAME_WIDTH = 180;
+const GAME_HEIGHT = 320;
 const KEYS = ['ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowUp', 'ArrowLeft'];
 
 // Registra erros de console e exceções da página para conferir no fim.
@@ -83,7 +83,7 @@ test('o botão de pausa na tela pausa e retoma a corrida no celular', async ({ p
   const box = await canvas.boundingBox();
   const scale = box.width / GAME_WIDTH;
   // A pista rola sem parar durante a corrida e fica parada na pausa; compara dois quadros da
-  // região inferior esquerda, onde não há texto piscando.
+  // margem esquerda da pista, onde não há texto piscando.
   const clip = {
     x: box.x,
     y: box.y + box.height * 0.65,
@@ -97,7 +97,7 @@ test('o botão de pausa na tela pausa e retoma a corrida no celular', async ({ p
   };
 
   expect(await moving()).toBe(true);
-  await canvas.tap({ position: { x: 308 * scale, y: 10 * scale } });
+  await canvas.tap({ position: { x: 168 * scale, y: 10 * scale } });
   await page.waitForTimeout(300);
   expect(await moving()).toBe(false);
 
@@ -113,7 +113,7 @@ const VIEWPORTS = [
   { name: 'celular em retrato', width: 390, height: 844 },
 ];
 
-test('a área de jogo cabe na tela e mantém 16:9 em retrato e paisagem', async ({ page }) => {
+test('a área de jogo cabe na tela e mantém 9:16 em retrato e paisagem', async ({ page }) => {
   const errors = watchErrors(page);
   const canvas = await openGame(page);
   await page.keyboard.press('Enter');

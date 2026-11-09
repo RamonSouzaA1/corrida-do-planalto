@@ -17,6 +17,11 @@
 - Q (ajuste do usuário à resposta anterior): Caio é pego ao fim de toda fase? → A: Não. Nas três primeiras cidades, mesmo que Chico chegue bem perto, Caio sempre entra no avião e foge; Chico só prende Caio no avião de Washington, a última fase.
 - Q: Ao perder uma corrida em uma cidade avançada, o jogador recomeça de onde? → A: Do início da cidade em que perdeu. O jogador tem 3 vidas; ao perder a corrida, perde uma vida; ao acabarem as vidas, o jogo volta ao início (Brasília). Uma vida extra vem de um item especial (faixa presidencial) ou de atingir um valor de pontos.
 
+### Session 2026-11-09
+
+- Q: Qual é a câmera e a orientação da tela? → A: Estilo Subway Surfers: tela em retrato, câmera atrás de Chico, com as três faixas saindo do horizonte. A resolução nativa passa de 320 x 180 para 180 x 320, para jogar com uma mão no celular.
+- Q: Como os personagens aparecem? → A: Como no desenho do jogo: Chico grisalho, de terno cinza, gravata torta e bandeira na mão; Caio de terno azul, cabelo impecável, óculos escuros e mala de dinheiro; a guarda de capacete branco, apito e cassetete; o jornalista com câmera grande e microfone na frente. Chico e Caio aparecem de costas na corrida e de frente na tela de título.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Correr e desviar em Brasília (Priority: P1)
@@ -248,7 +253,8 @@ completar uma corrida em cada um usando apenas os controles do dispositivo.
 - **FR-013**: Na versão completa, o jogo MUST oferecer quatro cenários na ordem Brasília,
   Assunção, Buenos Aires e Washington, cada um com paleta, fundo, obstáculos e coletáveis
   próprios, conforme a tabela de cenários do desenho do jogo.
-- **FR-014**: O jogo MUST usar pixel art de 16 bits em resolução nativa de 320 x 180, escalada
+- **FR-014**: O jogo MUST usar pixel art de 16 bits em resolução nativa de 180 x 320 (retrato),
+  com a câmera atrás de Chico e a pista em perspectiva, no estilo Subway Surfers, escalada
   para a tela com pixels nítidos, com no máximo 16 cores por cenário, fundo com três camadas de
   paralaxe e animações de corrida de 4 quadros para Chico e Caio e de 2 quadros para a guarda e o
   jornalista.

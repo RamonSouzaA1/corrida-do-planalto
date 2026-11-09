@@ -1,9 +1,9 @@
 {
   "chico": {
     "file": "sprites/chico.png",
-    "frameWidth": 16,
-    "frameHeight": 24,
-    "frames": 6,
+    "frameWidth": 40,
+    "frameHeight": 48,
+    "frames": 7,
     "animations": {
       "run": {
         "frames": [0, 1, 2, 3],
@@ -19,13 +19,18 @@
         "frames": [5],
         "frameRate": 1,
         "repeat": 0
+      },
+      "front": {
+        "frames": [6],
+        "frameRate": 1,
+        "repeat": 0
       }
     }
   },
   "caio": {
     "file": "sprites/caio.png",
-    "frameWidth": 16,
-    "frameHeight": 24,
+    "frameWidth": 40,
+    "frameHeight": 48,
     "frames": 6,
     "animations": {
       "run": {
@@ -39,6 +44,11 @@
         "repeat": 0
       },
       "board": {
+        "frames": [1, 3],
+        "frameRate": 6,
+        "repeat": -1
+      },
+      "front": {
         "frames": [5],
         "frameRate": 1,
         "repeat": 0
@@ -47,14 +57,15 @@
   },
   "aviao": {
     "file": "sprites/aviao.png",
-    "frameWidth": 64,
-    "frameHeight": 32,
-    "frames": 1
+    "frameWidth": 160,
+    "frameHeight": 88,
+    "frames": 1,
+    "doorHeight": 26
   },
   "jornalista": {
     "file": "sprites/jornalista.png",
-    "frameWidth": 16,
-    "frameHeight": 24,
+    "frameWidth": 40,
+    "frameHeight": 48,
     "frames": 2,
     "animations": {
       "idle": {
@@ -66,8 +77,8 @@
   },
   "guarda": {
     "file": "sprites/guarda.png",
-    "frameWidth": 16,
-    "frameHeight": 24,
+    "frameWidth": 40,
+    "frameHeight": 48,
     "frames": 2,
     "animations": {
       "idle": {
@@ -79,135 +90,159 @@
   },
   "cone": {
     "file": "sprites/cone.png",
-    "frameWidth": 16,
-    "frameHeight": 16,
+    "frameWidth": 44,
+    "frameHeight": 26,
     "frames": 1
   },
   "faixa": {
     "file": "sprites/faixa.png",
-    "frameWidth": 16,
-    "frameHeight": 32,
+    "frameWidth": 48,
+    "frameHeight": 56,
     "frames": 1
   },
   "tapume": {
     "file": "sprites/tapume.png",
-    "frameWidth": 16,
-    "frameHeight": 32,
+    "frameWidth": 48,
+    "frameHeight": 56,
     "frames": 1
   },
   "carro-oficial": {
     "file": "sprites/carro-oficial.png",
-    "frameWidth": 32,
-    "frameHeight": 16,
+    "frameWidth": 44,
+    "frameHeight": 36,
     "frames": 1
+  },
+  "margem-brasilia": {
+    "file": "sprites/margem-brasilia.png",
+    "frameWidth": 32,
+    "frameHeight": 64,
+    "frames": 2
   },
   "cerca": {
     "file": "sprites/cerca.png",
-    "frameWidth": 16,
-    "frameHeight": 16,
+    "frameWidth": 44,
+    "frameHeight": 26,
     "frames": 1
   },
   "barraca": {
     "file": "sprites/barraca.png",
-    "frameWidth": 16,
-    "frameHeight": 32,
+    "frameWidth": 48,
+    "frameHeight": 56,
     "frames": 1
   },
   "moto": {
     "file": "sprites/moto.png",
-    "frameWidth": 32,
-    "frameHeight": 16,
+    "frameWidth": 24,
+    "frameHeight": 40,
     "frames": 1
   },
   "flamula": {
     "file": "sprites/flamula.png",
-    "frameWidth": 8,
-    "frameHeight": 8,
+    "frameWidth": 16,
+    "frameHeight": 16,
     "frames": 1
   },
   "terere": {
     "file": "sprites/terere.png",
-    "frameWidth": 8,
-    "frameHeight": 8,
+    "frameWidth": 16,
+    "frameHeight": 16,
     "frames": 1
+  },
+  "margem-assuncao": {
+    "file": "sprites/margem-assuncao.png",
+    "frameWidth": 32,
+    "frameHeight": 64,
+    "frames": 2
   },
   "jornais": {
     "file": "sprites/jornais.png",
-    "frameWidth": 16,
-    "frameHeight": 16,
+    "frameWidth": 44,
+    "frameHeight": 26,
     "frames": 1
   },
   "banca": {
     "file": "sprites/banca.png",
-    "frameWidth": 16,
-    "frameHeight": 32,
+    "frameWidth": 48,
+    "frameHeight": 56,
     "frames": 1
   },
   "bonde": {
     "file": "sprites/bonde.png",
-    "frameWidth": 32,
-    "frameHeight": 16,
+    "frameWidth": 44,
+    "frameHeight": 60,
     "frames": 1
   },
   "carro-70": {
     "file": "sprites/carro-70.png",
-    "frameWidth": 32,
-    "frameHeight": 16,
+    "frameWidth": 44,
+    "frameHeight": 36,
     "frames": 1
   },
   "disco": {
     "file": "sprites/disco.png",
-    "frameWidth": 8,
-    "frameHeight": 8,
+    "frameWidth": 16,
+    "frameHeight": 16,
     "frames": 1
+  },
+  "margem-buenos-aires": {
+    "file": "sprites/margem-buenos-aires.png",
+    "frameWidth": 32,
+    "frameHeight": 64,
+    "frames": 2
   },
   "grade": {
     "file": "sprites/grade.png",
-    "frameWidth": 16,
-    "frameHeight": 16,
+    "frameWidth": 44,
+    "frameHeight": 26,
     "frames": 1
   },
   "fita": {
     "file": "sprites/fita.png",
-    "frameWidth": 16,
-    "frameHeight": 32,
+    "frameWidth": 48,
+    "frameHeight": 56,
     "frames": 1
   },
   "viatura": {
     "file": "sprites/viatura.png",
-    "frameWidth": 32,
-    "frameHeight": 16,
+    "frameWidth": 44,
+    "frameHeight": 36,
     "frames": 1
   },
   "nota": {
     "file": "sprites/nota.png",
-    "frameWidth": 8,
-    "frameHeight": 8,
+    "frameWidth": 16,
+    "frameHeight": 16,
     "frames": 1
   },
   "bandeirola": {
     "file": "sprites/bandeirola.png",
-    "frameWidth": 8,
-    "frameHeight": 8,
+    "frameWidth": 16,
+    "frameHeight": 16,
     "frames": 1
+  },
+  "margem-washington": {
+    "file": "sprites/margem-washington.png",
+    "frameWidth": 32,
+    "frameHeight": 64,
+    "frames": 2
   },
   "moeda": {
     "file": "sprites/moeda.png",
-    "frameWidth": 8,
-    "frameHeight": 8,
-    "frames": 2,
+    "frameWidth": 16,
+    "frameHeight": 16,
+    "frames": 4,
     "animations": {
       "spin": {
-        "frames": [0, 1],
-        "frameRate": 6,
+        "frames": [0, 1, 2, 3],
+        "frameRate": 8,
         "repeat": -1
       }
     }
   },
   "bandeira": {
     "file": "sprites/bandeira.png",
-    "frameWidth": 16,
-    "frameHeight": 16,
+    "frameWidth": 32,
+    "frameHeight": 32,
     "frames": 2,
     "animations": {
       "idle": {
@@ -219,20 +254,20 @@
   },
   "cartaz": {
     "file": "sprites/cartaz.png",
-    "frameWidth": 16,
-    "frameHeight": 24,
+    "frameWidth": 32,
+    "frameHeight": 48,
     "frames": 1
   },
   "mala": {
     "file": "sprites/mala.png",
-    "frameWidth": 16,
-    "frameHeight": 16,
+    "frameWidth": 32,
+    "frameHeight": 32,
     "frames": 1
   },
   "faixa-presidencial": {
     "file": "sprites/faixa-presidencial.png",
-    "frameWidth": 16,
-    "frameHeight": 16,
+    "frameWidth": 32,
+    "frameHeight": 32,
     "frames": 1
   }
 }

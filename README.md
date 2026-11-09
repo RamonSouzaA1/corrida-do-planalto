@@ -1,6 +1,7 @@
 # Corrida do Planalto
 
-Endless runner em pixel art de 16 bits: Chico persegue Caio por Brasília, Assunção, Buenos Aires e
+Endless runner em pixel art de 16 bits, em retrato e com a câmera atrás do corredor (estilo Subway
+Surfers): Chico persegue Caio por Brasília, Assunção, Buenos Aires e
 Washington. Feito com Phaser 3 e Vite; roda no navegador e é empacotado para Android e iPhone com o
 Capacitor, a partir do mesmo código.
 

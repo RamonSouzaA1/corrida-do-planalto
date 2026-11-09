@@ -40,7 +40,7 @@ Edge); Android e iOS via Capacitor na fase mobile
 resposta a comando em menos de 100 ms; carregamento inicial até a tela de título em menos de 10 s
 em conexão comum
 
-**Constraints**: funciona offline depois de carregado; resolução nativa 320 x 180 com escala de
+**Constraints**: funciona offline depois de carregado; resolução nativa 180 x 320 (retrato, câmera atrás do corredor) com escala de
 pixels nítidos; no máximo 16 cores por cenário; sem backend, login ou rede obrigatória; ativos
 com licença conhecida
 

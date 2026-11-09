@@ -3,7 +3,13 @@ import { recordRunEnd } from '../core/progress.js';
 import { bestScoreAfter } from '../core/score.js';
 import { t } from '../i18n.js';
 import { loadSave, writeSave } from '../platform/storage.js';
-import { onConfirm, pixelText } from './ui.js';
+import { VIEW } from './road.js';
+import { onConfirm, pixelText, wrapText } from './ui.js';
+
+const CENTER_X = VIEW.width / 2;
+const LINE_CHARS = 28;
+// Títulos usam letras em dobro.
+const BIG_LINE_CHARS = 14;
 
 const cityName = (id) => t(`cities.${id}`);
 
@@ -68,22 +74,29 @@ export class ResultScene extends Phaser.Scene {
     const end = recordRunEnd({ outcome, livesGained });
     const { title, lines, next } = screenText({ outcome, reason, cityId }, end);
 
-    this.add.rectangle(0, 0, 320, 180, 0x1d2b53).setOrigin(0, 0);
-    const heading = pixelText(this, 160, 20, title, { scale: 2, originX: 0.5 });
-    if (end.completed) heading.setTint(0xffd23f);
-    lines.forEach((line, i) => {
-      pixelText(this, 160, 44 + i * 11, line, { originX: 0.5 }).setTint(0xc8ecff);
-    });
-    if (outcome === 'won' && !end.completed) {
-      pixelText(this, 160, 66, t('hud.lives', { lives: end.progress.lives }), { originX: 0.5 });
-    }
-    pixelText(this, 160, 84, t('gameOver.finalScore', { score }), { originX: 0.5 });
-    pixelText(this, 160, 96, t('gameOver.bestScore', { score: best }), { originX: 0.5 });
-    if (newRecord) {
-      pixelText(this, 160, 108, t('gameOver.newRecord'), { originX: 0.5 }).setTint(0xffd23f);
-    }
+    this.add.rectangle(0, 0, VIEW.width, VIEW.height, 0x1d2b53).setOrigin(0, 0);
+    // Cada bloco de texto entra abaixo do anterior, com as linhas quebradas na largura da tela.
+    let y = 48;
+    const addText = (text, { scale = 1, tint = null, gap = 4 } = {}) => {
+      const wrapped = wrapText(text, scale === 1 ? LINE_CHARS : BIG_LINE_CHARS);
+      const label = pixelText(this, CENTER_X, y, wrapped, { scale, originX: 0.5 }).setCenterAlign();
+      if (tint !== null) label.setTint(tint);
+      y += label.height + gap;
+      return label;
+    };
 
-    const again = pixelText(this, 160, 136, next, { originX: 0.5 });
+    addText(title, { scale: 2, tint: end.completed ? 0xffd23f : null, gap: 14 });
+    for (const line of lines) addText(line, { tint: 0xc8ecff });
+    if (outcome === 'won' && !end.completed) {
+      addText(t('hud.lives', { lives: end.progress.lives }));
+    }
+    y += 12;
+    addText(t('gameOver.finalScore', { score }));
+    addText(t('gameOver.bestScore', { score: best }));
+    if (newRecord) addText(t('gameOver.newRecord'), { tint: 0xffd23f });
+
+    y = Math.max(y + 20, 230);
+    const again = addText(next);
     this.tweens.add({ targets: again, alpha: 0.2, duration: 500, yoyo: true, repeat: -1 });
     onConfirm(this, () => this.scene.start(end.gameOver ? 'TitleScene' : 'RunScene'), 500);
   }

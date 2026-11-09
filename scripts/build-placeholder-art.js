@@ -125,8 +125,6 @@ function createImage(width, height) {
   };
 }
 
-const mirror = (rows) => rows.map((row) => [...row].reverse().join(''));
-
 // Folha de quadros lado a lado.
 function sheet(frameWidth, frameHeight, frames) {
   const image = createImage(frameWidth * frames.length, frameHeight);
@@ -143,280 +141,607 @@ function rng(seed) {
   };
 }
 
-// ---------- Sprites ----------
+// Retângulo com contorno preto.
+function box(image, x, y, w, h, key) {
+  image.rect(x, y, w, h, 'K');
+  image.rect(x + 1, y + 1, w - 2, h - 2, key);
+}
 
-// Chico de perfil, correndo para a direita. Cabeça e tronco fixos; pernas e braços por quadro.
-const CHICO_HEAD = [
-  '......KKKK......',
-  '.....KHHHHK.....',
-  '....KHHHHHHK....',
-  '....KHHPPPPK....',
-  '....KHPPPKPK....',
-  '....KPPPPPPK....',
-  '.....KPPPPK.....',
-  '......KPPK......',
-  '.....KggggK.....',
-  '....KggggggK....',
-  '....KggggggK....',
-  '....KggggggK....',
-  '....KggggggK....',
-  '....KBBBBBBK....',
-  '....KBBBBBBK....',
+// Desenha em tamanho menor e amplia 2x (itens pequenos, que a perspectiva ainda reduz).
+const twice = (width, height, draw) => (image, x) => {
+  const small = createImage(width, height);
+  draw(small, 0);
+  small.pixels.forEach((key, index) => {
+    if (key === '.') return;
+    image.rect(x + (index % width) * 2, Math.floor(index / width) * 2, 2, 2, key);
+  });
+};
+
+// ---------- Personagens ----------
+
+// A câmera fica atrás de Chico (estilo Subway Surfers): Chico e Caio aparecem de costas na
+// corrida e de frente na tela de título; a guarda e o jornalista ficam de frente, na pista.
+// Todos em quadros de 40 x 48, com os pés na última linha e o corpo centrado em x + 20.
+const PERSON = { width: 40, height: 48 };
+
+// Bandeira de campanha fictícia: xadrez vermelho e dourado, sem lembrar a de nenhum país.
+function handFlag(image, poleX, handY, wave = 0) {
+  const top = Math.max(0, handY - 20);
+  image.rect(poleX, top, 1, handY - top + 1, 'H');
+  for (let i = 0; i < 8; i += 1) {
+    for (let j = 0; j < 6; j += 1) {
+      const checker = (Math.floor(i / 2) + Math.floor(j / 2)) % 2 === 0;
+      image.set(poleX + 1 + i, top + j + (i >= 4 ? wave : 0), checker ? 'R' : 'Y');
+    }
+  }
+}
+
+// Mala de dinheiro na mão, com notas escapando.
+function handCase(image, x, y) {
+  image.rect(x + 3, y - 1, 3, 1, 'K');
+  box(image, x, y, 9, 8, 'H');
+  image.points(x, y, [
+    [4, 3, 'Y'],
+    [1, -1, 'g'],
+    [2, -2, 'W'],
+    [7, -1, 'g'],
+  ]);
+}
+
+function head(image, cx, c, { front = false, eyeY = 8 } = {}) {
+  image.ellipse(cx, 8, 7, 8, 'K');
+  image.ellipse(cx, 8, 6, 7, front ? c.skin : c.hair);
+  if (front) {
+    // Cabelo no alto da cabeça e nas têmporas; olhos e boca.
+    for (let j = -7; j <= -3; j += 1) {
+      for (let i = -6; i <= 6; i += 1) {
+        if ((i * i) / 36 + (j * j) / 49 <= 1) image.set(cx + i, 8 + j, c.hair);
+      }
+    }
+    image.rect(cx - 6, 6, 1, 3, c.hair);
+    image.rect(cx + 6, 6, 1, 3, c.hair);
+    image.rect(cx - 3, eyeY, 1, 2, 'K');
+    image.rect(cx + 3, eyeY, 1, 2, 'K');
+    image.rect(cx - 1, 12, 3, 1, 'H');
+  } else {
+    image.rect(cx - 4, 12, 9, 2, c.hairShade);
+    image.rect(cx - 3, 14, 7, 1, c.hairShade);
+    image.rect(cx - 7, 7, 1, 3, c.skin);
+    image.rect(cx + 7, 7, 1, 3, c.skin);
+  }
+  image.rect(cx - 2, 16, 5, 1, c.skin);
+}
+
+// Braço: side -1 (esquerdo de quem olha) ou 1; pose 'down' (com o comprimento), 'up' ou 'out'.
+function arm(image, cx, c, side, pose, length = 12) {
+  const inner = side < 0 ? cx - 11 : cx + 10;
+  const outline = side < 0 ? cx - 12 : cx + 12;
+  if (pose === 'up') {
+    image.rect(Math.min(inner, outline), 5, 3, 14, 'K');
+    image.rect(inner, 6, 2, 13, c.suit);
+    image.rect(inner, 4, 2, 2, c.skin);
+  } else if (pose === 'out') {
+    const x = side < 0 ? cx - 19 : cx + 10;
+    box(image, x, 18, 10, 5, c.suit);
+    image.rect(side < 0 ? x : x + 8, 19, 2, 3, c.skin);
+  } else {
+    image.rect(Math.min(inner, outline), 18, 3, length + 3, 'K');
+    image.rect(inner, 18, 2, length, c.suit);
+    image.rect(inner, 18 + length, 2, 2, c.skin);
+  }
+}
+
+// Perna de 6 px de largura a partir da cintura; a perna levantada mostra a sola.
+function leg(image, x, c, length) {
+  image.rect(x - 1, 35, 8, length + 3, 'K');
+  image.rect(x, 35, 6, length, c.pants);
+  if (length < 10) image.rect(x, 35 + length + 1, 6, 1, 'M');
+}
+
+function torso(image, cx, c, front) {
+  box(image, cx - 9, 17, 19, 18, c.suit);
+  if (front) {
+    for (let y = 18; y < 24; y += 1) {
+      const half = 3 - Math.floor((y - 18) / 2);
+      image.rect(cx - half, y, half * 2 + 1, 1, 'W');
+    }
+  } else {
+    image.rect(cx - 3, 17, 7, 1, 'W');
+    image.rect(cx, 20, 1, 14, c.shade);
+  }
+}
+
+// Passos da corrida: comprimento das pernas e dos braços (esquerda, direita) em cada quadro.
+const STEPS = [
+  { legs: [10, 5], arms: [8, 13] },
+  { legs: [10, 8], arms: [11, 11] },
+  { legs: [5, 10], arms: [13, 8] },
+  { legs: [8, 10], arms: [11, 11] },
 ];
-const CHICO_LEGS = [
-  [
-    '...KBBK..KBBK...',
-    '...KBK....KBK...',
-    '..KBK......KBK..',
-    '..KBK......KBK..',
-    '.KBK........KBK.',
-    '.KBK........KBK.',
-    '.KBK........KBKK',
-    'KKKK........KKKK',
-    '................',
-  ],
-  [
-    '....KBBBBBBK....',
-    '....KBBKKBBK....',
-    '....KBK.KBBK....',
-    '....KBK..KBBK...',
-    '....KBK...KBK...',
-    '....KBK..KKK....',
-    '....KBK.........',
-    '...KKKK.........',
-    '................',
-  ],
-  [
-    '...KBBK..KBBK...',
-    '..KBBK....KBK...',
-    '..KBK.....KBK...',
-    '.KBK.......KBK..',
-    '.KBK.......KBK..',
-    'KBK.........KBK.',
-    'KK..........KBKK',
-    '............KKKK',
-    '................',
-  ],
-  [
-    '....KBBBBBBK....',
-    '....KBBKKBBK....',
-    '...KBBK.KBK.....',
-    '..KBBK..KBK.....',
-    '..KBK...KBK.....',
-    '...KKK..KBK.....',
-    '........KBK.....',
-    '........KKKK....',
-    '................',
-  ],
-];
-const ARM_FORWARD = [
-  [11, 9, 'g'],
-  [12, 10, 'P'],
-  [13, 10, 'P'],
-];
-const ARM_BACK = [
-  [4, 9, 'g'],
-  [3, 10, 'P'],
-  [3, 11, 'P'],
-];
-const ARMS_UP = [
-  [11, 8, 'g'],
-  [12, 7, 'P'],
-  [12, 6, 'P'],
-  [4, 8, 'g'],
-  [3, 7, 'P'],
-  [3, 6, 'P'],
-];
-// As pernas ocupam as linhas 16 a 23; o pé fica na última linha do quadro.
-const chicoRun = (legs, arm) => (image, x) => {
-  image.map(x, 0, [...CHICO_HEAD, '....KBBBBBBK....']);
-  image.map(x, 16, legs.slice(0, 8));
-  image.points(x, 0, arm);
+
+function backPerson(image, x, c, { legs, arms }, { armsUp = false } = {}) {
+  const cx = x + 20;
+  leg(image, cx - 7, c, legs[0]);
+  leg(image, cx + 2, c, legs[1]);
+  arm(image, cx, c, -1, armsUp ? 'up' : 'down', arms[0]);
+  arm(image, cx, c, 1, armsUp ? 'up' : 'down', arms[1]);
+  torso(image, cx, c, false);
+  head(image, cx, c);
+  return cx;
+}
+
+function frontPerson(image, x, c, { left = 'down', right = 'down', eyeY } = {}) {
+  const cx = x + 20;
+  leg(image, cx - 7, c, 10);
+  leg(image, cx + 2, c, 10);
+  if (left) arm(image, cx, c, -1, left);
+  if (right) arm(image, cx, c, 1, right);
+  torso(image, cx, c, true);
+  head(image, cx, c, { front: true, eyeY });
+  return cx;
+}
+
+// Chico do Planalto: grisalho, terno cinza, gravata torta (voando sobre o ombro quando visto de
+// costas) e bandeira na mão.
+const CHICO = { hair: 'W', hairShade: 'M', skin: 'P', suit: 'M', shade: 'N', pants: 'M' };
+const tieOverShoulder = (image, cx, flutter) => {
+  for (let i = 0; i < 5; i += 1) image.rect(cx - 3 - i, 17 + i + (i > 2 ? flutter : 0), 2, 1, 'R');
+};
+const chicoRun = (step) => (image, x) => {
+  const cx = backPerson(image, x, CHICO, { ...STEPS[step], arms: [STEPS[step].arms[0], 11] });
+  tieOverShoulder(image, cx, step % 2);
+  handFlag(image, cx + 13, 29, step % 2);
 };
 const chicoJump = (image, x) => {
-  image.map(x, 0, CHICO_HEAD);
-  image.map(x, 15, [
-    '...KBBBBBBBBK...',
-    '..KBBK...KBBK...',
-    '..KBK.....KBBK..',
-    '...KKK.....KKK..',
-  ]);
-  image.points(x, 0, ARMS_UP);
+  const cx = backPerson(image, x, CHICO, { legs: [5, 6], arms: [0, 0] }, { armsUp: true });
+  tieOverShoulder(image, cx, 1);
+  handFlag(image, cx + 13, 5);
 };
+// Deslize: agachado, rente ao chão.
 const chicoSlide = (image, x) => {
-  image.map(x, 15, [
-    '..KKKK..........',
-    '.KHHHHK.........',
-    'KHHPPPPK........',
-    'KHPPPKPK..KKKK..',
-    '.KPPPPKKggggBBKK',
-    '..KKKKgggggBBBBK',
-    '....KggggKBBBBBK',
-    '.....KKKKKKKBBBK',
-    '...........KKKKK',
-    '................',
-    '................',
+  const cx = x + 20;
+  box(image, cx - 15, 43, 7, 5, 'K');
+  box(image, cx + 9, 43, 7, 5, 'K');
+  box(image, cx - 11, 35, 23, 12, 'M');
+  image.rect(cx, 38, 1, 8, 'N');
+  image.ellipse(cx, 29, 7, 7, 'K');
+  image.ellipse(cx, 29, 6, 6, 'W');
+  image.rect(cx - 4, 32, 9, 2, 'M');
+  image.rect(cx - 3, 35, 7, 1, 'W');
+  for (let i = 0; i < 4; i += 1) image.rect(cx - 3 - i, 36 + i, 2, 1, 'R');
+  for (let i = 0; i < 8; i += 1) image.set(cx + 12 + i, 40 - i, 'H');
+  for (let i = 0; i < 6; i += 1) {
+    for (let j = 0; j < 5; j += 1) {
+      image.set(cx + 13 + i, 27 + j, (Math.floor(i / 2) + Math.floor(j / 2)) % 2 ? 'Y' : 'R');
+    }
+  }
+};
+const chicoFront = (image, x) => {
+  const cx = frontPerson(image, x, CHICO);
+  // Gravata torta.
+  for (let i = 0; i < 8; i += 1) image.rect(cx + Math.floor(i / 2), 18 + i, 2, 1, 'R');
+  handFlag(image, cx + 13, 30);
+};
+
+// Caio Herdeiro: terno azul, cabelo impecável, óculos escuros e a mala de dinheiro.
+const CAIO = { hair: 'H', hairShade: 'K', skin: 'P', suit: 'B', shade: 'N', pants: 'B' };
+const slickHair = (image, cx) => {
+  image.rect(cx + 2, 1, 1, 5, 'K');
+  image.points(cx, 0, [
+    [-3, 3, 'W'],
+    [-2, 2, 'W'],
+    [-4, 4, 'W'],
   ]);
 };
-
-// Pessoa parada, de frente para Chico (olhando para a esquerda). h cabelo, f pele, s camisa,
-// p calça.
-const PERSON = mirror([
-  '......KKKK......',
-  '.....KhhhhK.....',
-  '....KhhhhhhK....',
-  '....KhhffffK....',
-  '....KffffKfK....',
-  '....KffffffK....',
-  '.....KffffK.....',
-  '......KffK......',
-  '.....KssssK.....',
-  '....KssssssK....',
-  '...KsKssssKsK...',
-  '...KsKssssKsK...',
-  '...KfKssssKfK...',
-  '....KppppppK....',
-  '....KppppppK....',
-  '....KppKKppK....',
-  '....KpK..KpK....',
-  '....KpK..KpK....',
-  '....KpK..KpK....',
-  '....KpK..KpK....',
-  '....KpK..KpK....',
-  '....KpK..KpK....',
-  '....KKK..KKK....',
-  '...KKKK..KKKK...',
-]);
-const person = (colors, extra) => (image, x) => {
-  image.map(x, 0, PERSON, colors);
-  image.points(x, 0, extra);
+const caioRun = (step) => (image, x) => {
+  const cx = backPerson(image, x, CAIO, { ...STEPS[step], arms: [12, STEPS[step].arms[1]] });
+  slickHair(image, cx);
+  // Hastes dos óculos escuros.
+  image.set(cx - 7, 7, 'K');
+  image.set(cx + 7, 7, 'K');
+  handCase(image, cx - 17, 31 + (step % 2));
 };
-// Jornalista com microfone: abaixado e levantado.
-const MIC_DOWN = [
-  [2, 12, 'K'],
-  [2, 11, 'K'],
-  [2, 10, 'R'],
-  [1, 10, 'R'],
-];
-const MIC_UP = [
-  [2, 12, 'P'],
-  [2, 11, '.'],
-  [2, 10, 'K'],
-  [2, 9, 'K'],
-  [2, 8, 'R'],
-  [1, 8, 'R'],
-];
-// Guarda de óculos escuros, com o braço aberto no segundo quadro.
-const SUNGLASSES = [
-  [4, 4, 'K'],
-  [5, 4, 'K'],
-  [6, 4, 'K'],
-];
-const ARM_OUT = [
-  [3, 10, '.'],
-  [3, 11, '.'],
-  [3, 12, '.'],
-  [2, 10, 'N'],
-  [1, 10, 'N'],
-  [0, 10, 'P'],
-  [2, 9, 'K'],
-  [1, 9, 'K'],
-  [2, 11, 'K'],
-  [1, 11, 'K'],
-];
-
-const cone = (image) => {
-  image.map(0, 0, [
-    '................',
-    '................',
-    '.......KK.......',
-    '......KOOK......',
-    '......KOOK......',
-    '.....KOOOOK.....',
-    '.....KWWWWK.....',
-    '....KWWWWWWK....',
-    '....KOOOOOOK....',
-    '...KOOOOOOOOK...',
-    '...KOOOOOOOOK...',
-    '..KWWWWWWWWWWK..',
-    '..KOOOOOOOOOOK..',
-    '.KKKKKKKKKKKKKK.',
-    '.KMMMMMMMMMMMMK.',
-    '.KKKKKKKKKKKKKK.',
-  ]);
+// Caído depois de tropeçar (mala de dinheiro): pernas para o ar, mala aberta e notas voando.
+const caioFall = (image, x) => {
+  const cx = x + 20;
+  box(image, cx - 14, 23, 7, 4, 'K');
+  box(image, cx - 13, 26, 5, 12, 'B');
+  box(image, cx - 7, 26, 7, 4, 'K');
+  box(image, cx - 6, 29, 5, 9, 'B');
+  box(image, cx - 13, 37, 22, 10, 'B');
+  image.ellipse(cx + 13, 40, 6, 6, 'K');
+  image.ellipse(cx + 13, 40, 5, 5, 'P');
+  image.halfDisc(cx + 13, 38, 5, 'H', 'top');
+  image.rect(cx + 9, 40, 9, 2, 'K');
+  image.rect(cx + 12, 44, 3, 1, 'H');
+  box(image, cx + 1, 22, 10, 7, 'H');
+  for (const [i, j] of [
+    [3, 18],
+    [8, 15],
+    [13, 20],
+    [-2, 16],
+    [16, 13],
+  ]) {
+    image.rect(cx + i, j, 3, 2, 'g');
+    image.set(cx + i + 1, j, 'W');
+  }
+};
+const caioFront = (image, x) => {
+  const cx = frontPerson(image, x, CAIO);
+  slickHair(image, cx);
+  image.rect(cx - 5, 8, 11, 2, 'K');
+  image.set(cx - 4, 8, 'W');
+  image.set(cx + 2, 8, 'W');
+  image.rect(cx, 18, 1, 8, 'R');
+  handCase(image, cx - 17, 32);
 };
 
-// Faixa de protesto entre dois postes; Chico passa por baixo deslizando.
+// Guarda de segurança: capacete branco, apito na boca e cassetete. No segundo quadro, ergue o
+// cassetete.
+const GUARD = { hair: 'K', skin: 'P', suit: 'N', shade: 'K', pants: 'N' };
+const guard = (raised) => (image, x) => {
+  const cx = frontPerson(image, x, GUARD, { right: raised ? 'out' : 'down', eyeY: 9 });
+  image.halfDisc(cx, 7, 8, 'K', 'top');
+  image.halfDisc(cx, 7, 7, 'W', 'top');
+  image.rect(cx - 8, 6, 17, 2, 'K');
+  image.rect(cx - 7, 6, 15, 1, 'M');
+  image.rect(cx - 1, 12, 3, 2, 'Y');
+  image.set(cx + 2, 12, 'K');
+  image.rect(cx, 18, 1, 8, 'K');
+  image.rect(cx - 8, 31, 17, 2, 'K');
+  image.rect(cx, 31, 2, 2, 'Y');
+  if (raised) {
+    image.rect(cx + 17, 4, 3, 16, 'K');
+    image.rect(cx + 18, 5, 1, 3, 'M');
+  } else {
+    image.rect(cx + 10, 31, 3, 13, 'K');
+    image.rect(cx + 11, 41, 1, 2, 'M');
+  }
+};
+
+// Jornalista: câmera grande no ombro e microfone apontado para a frente (maior no segundo
+// quadro, quando ele avança o microfone).
+const REPORTER = { hair: 'H', skin: 'P', suit: 'W', shade: 'M', pants: 'N' };
+const reporter = (thrust) => (image, x) => {
+  const cx = frontPerson(image, x, REPORTER, { left: null, right: null });
+  // Colete de imprensa.
+  image.rect(cx - 8, 18, 5, 16, 'H');
+  image.rect(cx + 4, 18, 5, 16, 'H');
+  // Braço que apoia a câmera no ombro.
+  box(image, cx + 9, 12, 4, 10, 'W');
+  box(image, cx + 2, 1, 16, 12, 'M');
+  image.ellipse(cx + 9, 7, 4, 4, 'K');
+  image.ellipse(cx + 9, 7, 3, 3, 'B');
+  image.set(cx + 8, 6, 'W');
+  image.set(cx + 16, 2, 'R');
+  // Braço dobrado com o microfone.
+  box(image, cx - 13, 20, 5, 9, 'W');
+  const radius = thrust ? 5 : 3;
+  const micY = thrust ? 18 : 21;
+  image.rect(cx - 12, micY, 3, 8, 'K');
+  image.ellipse(cx - 11, micY, radius, radius, 'K');
+  image.ellipse(cx - 11, micY, radius - 1, radius - 1, 'R');
+  image.set(cx - 12, micY - 1, 'W');
+  if (thrust) image.rect(cx - 13, micY + 5, 5, 2, 'W');
+};
+
+// Avião visto por trás, parado no fim da pista, com a porta traseira aberta e a escada no chão.
+const plane = (image) => {
+  image.rect(0, 46, 160, 5, 'K');
+  image.rect(1, 47, 158, 3, 'M');
+  image.rect(40, 44, 80, 9, 'K');
+  image.rect(41, 45, 78, 7, 'M');
+  for (const cx of [34, 126]) {
+    image.ellipse(cx, 55, 7, 7, 'K');
+    image.ellipse(cx, 55, 5, 5, 'M');
+    image.ellipse(cx, 55, 2, 2, 'K');
+  }
+  for (let j = 0; j < 22; j += 1) {
+    const half = 3 + Math.floor(j / 5);
+    image.rect(80 - half, j, half * 2, 1, 'K');
+    if (j > 0) image.rect(81 - half, j, half * 2 - 2, 1, 'B');
+  }
+  image.rect(50, 14, 60, 4, 'K');
+  image.rect(51, 15, 58, 2, 'M');
+  image.rect(52, 58, 3, 22, 'M');
+  image.rect(105, 58, 3, 22, 'M');
+  box(image, 49, 78, 9, 10, 'M');
+  box(image, 102, 78, 9, 10, 'M');
+  image.ellipse(80, 42, 24, 24, 'K');
+  image.ellipse(80, 42, 23, 23, 'W');
+  for (let y = 46; y < 50; y += 1) {
+    const half = Math.floor(Math.sqrt(23 * 23 - (y - 42) * (y - 42)));
+    image.rect(80 - half, y, half * 2 + 1, 1, 'B');
+  }
+  image.rect(71, 34, 18, 28, 'K');
+  image.rect(73, 36, 14, 26, 'N');
+  for (let step = 0; step < 6; step += 1) {
+    const half = 8 + step;
+    image.rect(80 - half, 62 + step * 4, half * 2, 2, 'W');
+    image.rect(80 - half, 64 + step * 4, half * 2, 2, 'M');
+  }
+  image.rect(62, 86, 36, 2, 'K');
+};
+// Altura da soleira da porta acima do chão, usada pela cena para Caio subir a escada.
+const PLANE_DOOR_HEIGHT = 26;
+
+// ---------- Obstáculos ----------
+
+// Vistos de frente, vindo na direção de Chico. Baixos (pular): 44 x 26. Altos (deslizar por
+// baixo): 48 x 56, com 32 px livres embaixo. Bloqueios (trocar de faixa): tamanho próprio.
+const LOW = { frameWidth: 44, frameHeight: 26 };
+const HIGH = { frameWidth: 48, frameHeight: 56 };
+
+function highPosts(image, key = 'M') {
+  box(image, 0, 0, 3, 56, key);
+  box(image, 45, 0, 3, 56, key);
+}
+
+// Listras na horizontal, de cores alternadas.
+function stripes(image, x, y, w, h, keys, every = 4) {
+  for (let i = 0; i < w; i += 1) image.rect(x + i, y, 1, h, keys[Math.floor(i / every) % 2]);
+}
+
+// Carro de frente, em 44 x 36.
+function carFront(image, body, { round = false, bumper = 'M', extra } = {}) {
+  image.rect(5, 9, 3, 3, 'K');
+  image.rect(36, 9, 3, 3, 'K');
+  box(image, 8, 2, 28, 13, body);
+  box(image, 10, 4, 24, 9, 'L');
+  image.rect(4, 29, 8, 7, 'K');
+  image.rect(32, 29, 8, 7, 'K');
+  box(image, 1, 13, 42, 16, body);
+  for (const x of [3, 33]) {
+    if (round) {
+      image.ellipse(x + 4, 18, 4, 4, 'K');
+      image.ellipse(x + 4, 18, 3, 3, 'Y');
+    } else {
+      box(image, x, 15, 8, 6, 'Y');
+    }
+  }
+  box(image, 14, 15, 16, 8, 'K');
+  image.rect(15, 17, 14, 1, 'M');
+  image.rect(15, 20, 14, 1, 'M');
+  image.rect(2, 25, 40, 3, bumper);
+  image.rect(18, 24, 8, 3, 'W');
+  extra?.(image);
+}
+
+// Brasília: cavalete entre dois cones de obra, faixa de protesto, tapume e carro oficial.
+const cones = (image) => {
+  box(image, 8, 9, 28, 6, 'Y');
+  for (let x = 11; x < 34; x += 6) image.rect(x, 10, 3, 4, 'K');
+  for (const cx of [8, 36]) {
+    for (let j = 0; j < 18; j += 1) {
+      const half = 1 + Math.floor(j / 4);
+      image.rect(cx - half - 1, 5 + j, half * 2 + 2, 1, 'K');
+      const band = (j >= 6 && j < 9) || (j >= 12 && j < 15);
+      image.rect(cx - half, 5 + j, half * 2, 1, band ? 'W' : 'O');
+    }
+    box(image, cx - 8, 22, 16, 4, 'O');
+  }
+};
+
 const banner = (image) => {
-  image.rect(0, 0, 2, 32, 'K');
-  image.rect(14, 0, 2, 32, 'K');
-  image.rect(0, 0, 1, 32, 'M');
-  image.rect(15, 0, 1, 32, 'M');
-  image.rect(2, 6, 12, 14, 'W');
-  image.rect(2, 6, 12, 1, 'K');
-  image.rect(2, 19, 12, 1, 'K');
-  image.rect(3, 9, 10, 2, 'R');
-  image.rect(3, 13, 7, 2, 'B');
-  image.rect(3, 16, 9, 1, 'R');
+  highPosts(image);
+  box(image, 2, 3, 44, 20, 'W');
+  image.rect(6, 7, 36, 3, 'R');
+  image.rect(6, 12, 26, 2, 'B');
+  image.rect(6, 16, 32, 2, 'R');
 };
 
-// Tapume de obra suspenso sobre cavaletes.
 const hoarding = (image) => {
-  image.rect(1, 18, 2, 14, 'M');
-  image.rect(13, 18, 2, 14, 'M');
-  image.rect(0, 4, 16, 16, 'K');
-  image.rect(1, 5, 14, 14, 'H');
-  for (let i = 0; i < 14; i += 4) image.rect(1 + i, 5, 2, 14, 'O');
-  image.rect(1, 11, 14, 2, 'Y');
+  box(image, 3, 24, 3, 32, 'M');
+  box(image, 42, 24, 3, 32, 'M');
+  box(image, 0, 2, 48, 23, 'H');
+  for (let y = 3; y < 24; y += 1) {
+    for (let x = 1; x < 47; x += 1) if (Math.floor((x + y) / 4) % 2) image.set(x, y, 'O');
+  }
+  image.rect(1, 11, 46, 4, 'Y');
+  for (let x = 3; x < 46; x += 8) image.rect(x, 11, 4, 4, 'K');
 };
 
-const officialCar = (image) => {
+const officialCar = (image) =>
+  carFront(image, 'N', {
+    extra: () => {
+      image.rect(2, 7, 1, 6, 'M');
+      image.rect(3, 7, 4, 3, 'Y');
+      image.rect(41, 7, 1, 6, 'M');
+      image.rect(37, 7, 4, 3, 'R');
+    },
+  });
+
+// Assunção: cerca de madeira, barraca de feira e moto.
+const fence = (image) => {
+  box(image, 0, 8, 44, 5, 'C');
+  box(image, 0, 16, 44, 5, 'C');
+  for (const x of [2, 20, 37]) box(image, x, 3, 5, 23, 'H');
+};
+
+const stall = (image) => {
+  highPosts(image, 'H');
+  box(image, 0, 2, 48, 16, 'W');
+  stripes(image, 1, 3, 46, 14, ['O', 'W']);
+  for (let k = 0; k < 6; k += 1) image.halfDisc(4 + k * 8, 18, 3, k % 2 ? 'W' : 'O', 'bottom');
+  for (const [x, key] of [
+    [10, 'Y'],
+    [23, 'g'],
+    [35, 'R'],
+  ]) {
+    image.rect(x + 1, 19, 1, 4, 'K');
+    box(image, x, 23, 4, 5, key);
+  }
+};
+
+const motorbike = (image) => {
+  image.ellipse(12, 31, 4, 8, 'K');
+  image.rect(11, 25, 2, 12, 'M');
+  image.rect(8, 12, 2, 14, 'M');
+  image.rect(14, 12, 2, 14, 'M');
+  box(image, 7, 21, 10, 4, 'R');
+  box(image, 8, 15, 8, 6, 'R');
+  image.rect(1, 6, 22, 2, 'K');
+  image.rect(0, 5, 3, 4, 'K');
+  image.rect(21, 5, 3, 4, 'K');
+  image.ellipse(3, 2, 2, 2, 'M');
+  image.ellipse(20, 2, 2, 2, 'M');
+  image.ellipse(12, 11, 5, 5, 'K');
+  image.ellipse(12, 11, 4, 4, 'Y');
+  image.set(11, 9, 'W');
+};
+
+// Buenos Aires: pacotes de jornais, letreiro da banca, bonde e carro dos anos 70.
+const newspapers = (image) => {
+  for (const [x, y, w] of [
+    [0, 10, 15],
+    [15, 5, 14],
+    [29, 12, 15],
+  ]) {
+    box(image, x, y, w, 26 - y, 'W');
+    for (let line = y + 2; line < 25; line += 2) image.rect(x + 1, line, w - 2, 1, 'M');
+    image.rect(x + Math.floor(w / 2), y, 2, 26 - y, 'R');
+  }
+};
+
+const kioskSign = (image) => {
+  highPosts(image);
+  box(image, 2, 2, 44, 15, 'G');
+  image.rect(8, 5, 32, 2, 'Y');
+  image.rect(12, 10, 24, 2, 'W');
+  stripes(image, 3, 17, 42, 6, ['W', 'O']);
+  image.rect(3, 23, 42, 1, 'K');
+};
+
+const tram = (image) => {
+  image.rect(21, 0, 2, 6, 'K');
+  image.rect(14, 0, 16, 1, 'K');
+  image.rect(8, 56, 6, 4, 'K');
+  image.rect(30, 56, 6, 4, 'K');
+  box(image, 4, 5, 36, 5, 'C');
+  box(image, 2, 9, 40, 43, 'O');
+  box(image, 10, 11, 24, 6, 'K');
+  image.rect(13, 13, 18, 2, 'Y');
+  box(image, 5, 19, 34, 14, 'L');
+  image.rect(21, 19, 2, 14, 'K');
+  image.rect(3, 35, 38, 2, 'W');
+  image.ellipse(22, 42, 4, 4, 'K');
+  image.ellipse(22, 42, 3, 3, 'Y');
+  image.rect(3, 47, 38, 4, 'C');
+  box(image, 6, 51, 32, 5, 'M');
+};
+
+const seventiesCar = (image) => carFront(image, 'G', { round: true, bumper: 'C' });
+
+// Washington: grade de metal, fita de isolamento e viatura.
+const barricade = (image) => {
+  for (let x = 3; x < 42; x += 5) image.rect(x, 5, 2, 14, 'M');
+  box(image, 0, 2, 44, 4, 'C');
+  box(image, 0, 18, 44, 3, 'C');
+  image.rect(2, 21, 2, 4, 'M');
+  image.rect(40, 21, 2, 4, 'M');
+  image.rect(0, 25, 7, 1, 'K');
+  image.rect(37, 25, 7, 1, 'K');
+};
+
+const tape = (image) => {
+  highPosts(image);
+  image.rect(0, 0, 3, 2, 'Y');
+  image.rect(45, 0, 3, 2, 'Y');
+  for (const y of [5, 15]) {
+    image.rect(3, y - 1, 42, 8, 'K');
+    stripes(image, 3, y, 42, 6, ['Y', 'K']);
+  }
+};
+
+const patrolCar = (image) =>
+  carFront(image, 'W', {
+    extra: () => {
+      image.rect(14, 0, 16, 3, 'K');
+      image.rect(15, 0, 7, 2, 'R');
+      image.rect(22, 0, 7, 2, 'B');
+      image.rect(2, 22, 12, 2, 'N');
+      image.rect(30, 22, 12, 2, 'N');
+    },
+  });
+
+// ---------- Coletáveis e power-ups ----------
+
+const coinFrame = (radius) => (image, x) => {
+  image.ellipse(x + 8, 8, radius, 7, 'K');
+  if (radius < 3) {
+    image.rect(x + 7, 2, 2, 12, 'Y');
+    return;
+  }
+  image.ellipse(x + 8, 8, radius - 1, 6, 'Y');
+  image.rect(x + 8 - radius + 2, 5, 1, 5, 'W');
+  image.rect(x + 7, 5, 2, 6, 'H');
+  image.rect(x + 8 + radius - 3, 6, 1, 5, 'H');
+};
+
+// Flâmula fictícia num palito: dourada com listra preta, sem as cores de nenhum país.
+const pennant = (image) =>
   image.map(0, 0, [
-    '................................',
-    '.........KKKKKKKKKKKK...........',
-    '........KNLLLLKNLLLLLK..........',
-    '.......KNLLLLLKNLLLLLLK.........',
-    '......KNNLLLLLKNLLLLLLLK........',
-    '...KKKNNNNNNNNNNNNNNNNNNKKKKK...',
-    '..KNNNNNNNNNNNNNNNNNNNNNNNNNNK..',
-    '.KYNNNNNNNNNNNNNNNNNNNNNNNNNNRK.',
-    '.KNNNNNNNNNNNNNNNNNNNNNNNNNNNNK.',
-    '.KNNNNNNNNNNNNNNNNNNNNNNNNNNNNK.',
-    '.KMMMMMMMMMMMMMMMMMMMMMMMMMMMMK.',
-    '..KKKKKKKKKKKKKKKKKKKKKKKKKKKK..',
-    '....KKKK..............KKKK......',
-    '...KKMMKK............KKMMKK.....',
-    '....KKKK..............KKKK......',
-    '................................',
+    '.Y......',
+    '.HYYYYYK',
+    '.HYKKYK.',
+    '.HYYYYK.',
+    '.HKKYK..',
+    '.HYK....',
+    '.HK.....',
+    '.H......',
   ]);
-};
 
-const coinFrames = [
-  (image, x) =>
-    image.map(x, 0, [
-      '..KKKK..',
-      '.KYYYYK.',
-      'KYWYYYYK',
-      'KYWYYHYK',
-      'KYYYYHYK',
-      'KYYYYHYK',
-      '.KYHHYK.',
-      '..KKKK..',
-    ]),
-  (image, x) =>
-    image.map(x, 0, [
-      '...KK...',
-      '..KYYK..',
-      '..KWYK..',
-      '..KWYK..',
-      '..KYHK..',
-      '..KYHK..',
-      '..KYHK..',
-      '...KK...',
-    ]),
-];
+// Garrafa térmica de tereré com a erva por cima.
+const terere = (image) =>
+  image.map(0, 0, [
+    '..KKKK..',
+    '..KggK..',
+    '.KCCCCK.',
+    '.KGGGGK.',
+    '.KGCCGK.',
+    '.KGGGGK.',
+    '.KGGGGK.',
+    '..KKKK..',
+  ]);
 
-// ---------- Power-ups ----------
+// Disco de vinil.
+const vinyl = (image) =>
+  image.map(0, 0, [
+    '..KKKK..',
+    '.KKAAKK.',
+    'KKARRAKK',
+    'KARWRRAK',
+    'KARRRRAK',
+    'KKARRAKK',
+    '.KKAAKK.',
+    '..KKKK..',
+  ]);
+
+// Nota de dinheiro fictícia.
+const banknote = (image) =>
+  image.map(0, 0, [
+    '........',
+    'KKKKKKKK',
+    'KgggggGK',
+    'KgGWWGgK',
+    'KgGWWGgK',
+    'KGgggggK',
+    'KKKKKKKK',
+    '........',
+  ]);
+
+// Bandeirola fictícia: verde-escura e preta em diagonal, com um ponto dourado.
+const starPennant = (image) =>
+  image.map(0, 0, [
+    '.Y......',
+    '.HKKKKYK',
+    '.HgKKK..',
+    '.HggKK..',
+    '.HgggK..',
+    '.HgK....',
+    '.HK.....',
+    '.H......',
+  ]);
 
 // Bandeira de campanha fictícia: xadrez vermelho e dourado com um disco preto, num mastro,
 // tremulando. De propósito não lembra a bandeira de nenhum país.
@@ -500,757 +825,359 @@ const sash = (image) => {
   image.points(0, 0, [[7, 7, 'Y']]);
 };
 
-// Caio Herdeiro: mesmo corpo de Chico, com cabelo loiro, terno cinza e calça preta.
-const CAIO_COLORS = { H: 'Y', g: 'M', B: 'K' };
-const recolor = (list) => list.map(([i, j, key]) => [i, j, CAIO_COLORS[key] ?? key]);
-const caioRun = (legs, arm) => (image, x) => {
-  image.map(x, 0, [...CHICO_HEAD, '....KBBBBBBK....'], CAIO_COLORS);
-  image.map(x, 16, legs.slice(0, 8), CAIO_COLORS);
-  image.points(x, 0, [...recolor(arm), [7, 9, 'R'], [7, 10, 'R']]);
-};
-// Caído de costas, depois de tropeçar (usado pela mala de dinheiro).
-const caioFall = (image, x) => {
-  image.map(x, 14, [
-    '..........KKKK..',
-    '.........KYYYYK.',
-    '..KKKKKKKYYPPPK.',
-    '.KKKMMMMMKPPKPK.',
-    'KKKKMMRMMKPPPPK.',
-    '.KKKMMMMMKKPPK..',
-    '..KKKKKKKK.KK...',
-    '................',
-    '..P.......P.....',
-    '................',
-  ]);
-};
-// De costas, subindo a escada do avião.
-const caioBoard = (image, x) => {
-  image.map(x, 0, [
-    '......KKKK......',
-    '.....KYYYYK.....',
-    '....KYYYYYYK....',
-    '....KYYYYYYK....',
-    '....KYYYYYYK....',
-    '....KYYYYYYK....',
-    '.....KYYYYK.....',
-    '......KPPK......',
-    '.....KMMMMK.....',
-    '...KKMMMMMMKK...',
-    '..KPKMMMMMMKPK..',
-    '..KPKMMMMMMKPK..',
-    '....KMMMMMMK....',
-    '....KKKKKKKK....',
-    '....KKKKKKKK....',
-    '....KKKKKKKK....',
-    '....KKK..KKK....',
-    '....KKK..KKK....',
-    '....KKK..KKK....',
-    '....KKK.KKK.....',
-    '....KKK.KKK.....',
-    '...KKKK.KKKK....',
-    '................',
-    '................',
-  ]);
-};
+// ---------- Margens da pista ----------
 
-// Avião de perfil, virado para a direita, com a porta e a escada de embarque atrás da asa.
-const plane = (image) => {
-  // Leme: triângulo em degraus que sai do topo da fuselagem.
-  for (let j = 0; j < 10; j += 1)
-    image.rect(3 + Math.floor(j / 2), 3 + j, 9 - Math.floor(j / 2), 1, 'B');
-  image.rect(3, 2, 6, 1, 'K');
-  // Fuselagem: cauda afinando à esquerda, corpo reto e nariz arredondado à direita.
-  image.rect(4, 12, 54, 9, 'K');
-  image.rect(5, 13, 53, 7, 'W');
-  image.ellipse(57, 16, 6, 4, 'K');
-  image.ellipse(57, 16, 5, 3, 'W');
-  image.rect(5, 18, 58, 1, 'B'); // faixa azul
-  image.rect(5, 19, 58, 1, 'N');
-  for (let x = 24; x < 52; x += 4) image.rect(x, 14, 2, 2, 'N'); // janelas
-  image.rect(56, 14, 4, 2, 'N'); // cabine
-  image.rect(15, 13, 4, 7, 'K'); // porta aberta
-  image.rect(16, 14, 2, 6, 'N');
-  image.rect(30, 20, 18, 2, 'M'); // asa
-  image.rect(30, 22, 18, 1, 'K');
-  image.rect(26, 21, 2, 8, 'M'); // trem de pouso
-  image.rect(50, 21, 2, 8, 'M');
-  image.rect(25, 28, 4, 4, 'K');
-  image.rect(49, 28, 4, 4, 'K');
-  // Escada de embarque, do chão até a porta.
-  for (let step = 0; step < 6; step += 1) image.rect(4 + step * 2, 31 - step * 2, 4, 1, 'W');
-  image.rect(3, 31, 1, 1, 'M');
-};
-
-// ---------- Obstáculos e coletáveis de Assunção, Buenos Aires e Washington ----------
-
-// Carro de perfil, virado para a direita, com as rodas na última linha do quadro de 16 px.
-function car(image, x, y, body, extra = []) {
-  image.rect(x + 8, y, 15, 4, 'K');
-  image.rect(x + 9, y + 1, 6, 2, 'L');
-  image.rect(x + 16, y + 1, 6, 2, 'L');
-  image.rect(x + 1, y + 4, 30, 5, 'K');
-  image.rect(x + 2, y + 5, 28, 3, body);
-  for (const wheel of [7, 24]) {
-    image.ellipse(x + wheel, y + 9, 2, 2, 'K');
-    image.set(x + wheel, y + 9, 'M');
-  }
-  image.points(x, y, extra);
+// Árvores, palmeiras e postes que passam ao lado da pista, em quadros de 32 x 64.
+function tree(image, x, canopy, light) {
+  image.rect(x + 14, 36, 4, 28, 'K');
+  image.rect(x + 15, 36, 2, 28, 'H');
+  image.ellipse(x + 16, 22, 14, 18, 'K');
+  image.ellipse(x + 16, 22, 13, 17, canopy);
+  image.ellipse(x + 11, 15, 6, 7, light);
 }
 
-// Dois postes com algo pendurado no alto; Chico passa por baixo deslizando.
-function posts(image, key = 'M') {
-  image.rect(0, 0, 2, 32, 'K');
-  image.rect(14, 0, 2, 32, 'K');
-  image.rect(0, 0, 1, 32, key);
-  image.rect(15, 0, 1, 32, key);
+function lamp(image, x, pole) {
+  image.rect(x + 15, 6, 2, 58, pole);
+  image.rect(x + 7, 6, 18, 2, pole);
+  box(image, x + 5, 8, 7, 4, 'Y');
+  box(image, x + 20, 8, 7, 4, 'Y');
+  image.rect(x + 13, 61, 6, 3, pole);
 }
 
-// Assunção: cerca de madeira (pular), barraca de feira (deslizar sob o toldo), moto (desviar).
-const fence = (image) => {
-  for (const x of [1, 12]) {
-    image.rect(x, 3, 3, 13, 'K');
-    image.rect(x + 1, 3, 1, 12, 'H');
+function palm(image, x) {
+  for (let y = 18; y < 64; y += 1) {
+    const bend = Math.round(Math.sin((y - 18) / 14) * 3);
+    image.rect(x + 13 + bend, y, 4, 1, y % 5 === 0 ? 'K' : 'H');
   }
-  for (const y of [5, 10]) {
-    image.rect(0, y, 16, 3, 'K');
-    image.rect(0, y + 1, 16, 1, 'C');
+  for (const [dx, dy, length] of [
+    [-1, -1, 14],
+    [1, -1, 14],
+    [-1, 0, 15],
+    [1, 0, 15],
+    [-1, 1, 10],
+    [1, 1, 10],
+  ]) {
+    for (let i = 0; i < length; i += 1) {
+      const y = 16 + dy * Math.round(i / 3) + Math.round((i * i) / 30);
+      image.rect(x + 15 + dx * i, y, 1, 3, i % 3 ? 'G' : 'g');
+    }
   }
-};
+  image.ellipse(x + 15, 18, 2, 2, 'H');
+}
 
-const stall = (image) => {
-  image.rect(1, 8, 1, 24, 'K');
-  image.rect(14, 8, 1, 24, 'K');
-  image.rect(0, 7, 16, 10, 'K');
-  for (let x = 1; x < 15; x += 1) {
-    const key = Math.floor((x - 1) / 2) % 2 ? 'W' : 'O';
-    image.rect(x, 8, 1, 8, key);
-    if (x % 2) image.set(x, 17, key);
-  }
-  image.points(0, 0, [
-    [4, 17, 'K'],
-    [4, 18, 'Y'],
-    [4, 19, 'Y'],
-    [8, 17, 'K'],
-    [8, 18, 'g'],
-    [8, 19, 'g'],
-    [11, 17, 'K'],
-    [11, 18, 'R'],
-    [11, 19, 'R'],
-  ]);
-};
-
-const motorbike = (image) => {
-  for (const wheel of [7, 24]) {
-    image.ellipse(wheel, 12, 3, 3, 'K');
-    image.ellipse(wheel, 12, 1, 1, 'M');
-  }
-  image.rect(4, 10, 6, 1, 'M'); // escapamento
-  image.rect(9, 8, 13, 3, 'R');
-  image.rect(13, 5, 7, 3, 'R'); // tanque
-  image.rect(8, 6, 6, 2, 'K'); // banco
-  image.points(0, 0, [
-    [23, 11, 'M'],
-    [23, 10, 'M'],
-    [22, 9, 'M'],
-    [22, 8, 'M'],
-    [21, 7, 'M'],
-    [21, 6, 'M'],
-    [21, 5, 'M'],
-    [24, 6, 'Y'],
-    [24, 7, 'Y'],
-  ]);
-  image.rect(19, 4, 4, 1, 'K'); // guidão
-};
-
-// Flâmula fictícia num palito: dourada com listra preta, sem as cores de nenhum país.
-const pennant = (image) =>
-  image.map(0, 0, [
-    '.Y......',
-    '.HYYYYYK',
-    '.HYKKYK.',
-    '.HYYYYK.',
-    '.HKKYK..',
-    '.HYK....',
-    '.HK.....',
-    '.H......',
-  ]);
-
-// Garrafa térmica de tereré com a erva por cima.
-const terere = (image) =>
-  image.map(0, 0, [
-    '..KKKK..',
-    '..KggK..',
-    '.KCCCCK.',
-    '.KGGGGK.',
-    '.KGCCGK.',
-    '.KGGGGK.',
-    '.KGGGGK.',
-    '..KKKK..',
-  ]);
-
-// Buenos Aires: pacotes de jornais (pular), letreiro da banca (deslizar), bonde e carro dos anos 70.
-const newspapers = (image) => {
-  image.rect(1, 9, 14, 6, 'K');
-  image.rect(2, 10, 12, 4, 'W');
-  image.rect(3, 11, 9, 1, 'M');
-  image.rect(3, 13, 7, 1, 'M');
-  image.rect(8, 9, 1, 6, 'R');
-  image.rect(3, 4, 11, 6, 'K');
-  image.rect(4, 5, 9, 4, 'C');
-  image.rect(5, 6, 6, 1, 'M');
-  image.rect(8, 4, 1, 6, 'R');
-  image.rect(0, 15, 16, 1, 'K');
-};
-
-const kioskSign = (image) => {
-  posts(image);
-  image.rect(2, 5, 12, 9, 'K');
-  image.rect(3, 6, 10, 7, 'G');
-  image.rect(4, 7, 8, 1, 'Y');
-  image.rect(4, 9, 6, 1, 'W');
-  image.rect(4, 11, 7, 1, 'W');
-  for (let x = 2; x < 14; x += 1) image.rect(x, 14, 1, 5, Math.floor(x / 2) % 2 ? 'W' : 'O');
-  image.rect(2, 19, 12, 1, 'K');
-};
-
-const tram = (image) => {
-  image.points(0, 0, [
-    [13, 0, 'K'],
-    [14, 1, 'K'],
-  ]);
-  image.rect(2, 1, 28, 2, 'K');
-  image.rect(3, 2, 26, 1, 'C');
-  image.rect(1, 3, 30, 10, 'K');
-  image.rect(2, 4, 28, 8, 'O');
-  for (let x = 4; x < 28; x += 6) image.rect(x, 5, 4, 3, 'L');
-  image.rect(2, 9, 28, 1, 'W');
-  image.rect(2, 10, 28, 2, 'C');
-  for (const wheel of [8, 23]) image.ellipse(wheel, 13, 2, 2, 'K');
-  image.rect(0, 15, 32, 1, 'M'); // trilho
-};
-
-const seventiesCar = (image) =>
-  car(image, 0, 4, 'G', [
-    [0, 5, 'C'],
-    [0, 6, 'C'],
-    [31, 5, 'C'],
-    [31, 6, 'C'],
-    [29, 5, 'Y'],
-    [2, 5, 'R'],
-  ]);
-
-// Disco de vinil.
-const vinyl = (image) =>
-  image.map(0, 0, [
-    '..KKKK..',
-    '.KKAAKK.',
-    'KKARRAKK',
-    'KARWRRAK',
-    'KARRRRAK',
-    'KKARRAKK',
-    '.KKAAKK.',
-    '..KKKK..',
-  ]);
-
-// Washington: grade de metal (pular), fita de isolamento (deslizar), viatura (desviar).
-const barricade = (image) => {
-  image.rect(0, 3, 16, 2, 'K');
-  image.rect(0, 3, 16, 1, 'C');
-  for (let x = 1; x < 16; x += 3) image.rect(x, 5, 1, 7, 'M');
-  image.rect(0, 11, 16, 1, 'C');
-  image.rect(0, 12, 16, 1, 'K');
-  image.rect(1, 12, 1, 3, 'M');
-  image.rect(14, 12, 1, 3, 'M');
-  image.rect(0, 15, 4, 1, 'K');
-  image.rect(12, 15, 4, 1, 'K');
-};
-
-const tape = (image) => {
-  posts(image);
-  for (const y of [8, 15]) {
-    for (let x = 2; x < 14; x += 1) image.rect(x, y, 1, 3, Math.floor(x / 2) % 2 ? 'K' : 'Y');
-  }
-};
-
-const patrolCar = (image) =>
-  car(image, 0, 4, 'W', [
-    [13, -1, 'R'],
-    [14, -1, 'R'],
-    [16, -1, 'B'],
-    [17, -1, 'B'],
-    [2, 5, 'N'],
-    [3, 5, 'N'],
-    [2, 6, 'N'],
-    [3, 6, 'N'],
-    [28, 5, 'N'],
-    [29, 5, 'N'],
-    [28, 6, 'N'],
-    [29, 6, 'N'],
-    [15, 6, 'Y'],
-  ]);
-
-// Nota de dinheiro fictícia.
-const banknote = (image) =>
-  image.map(0, 0, [
-    '........',
-    'KKKKKKKK',
-    'KgggggGK',
-    'KgGWWGgK',
-    'KgGWWGgK',
-    'KGgggggK',
-    'KKKKKKKK',
-    '........',
-  ]);
-
-// Bandeirola fictícia: verde-escura e preta em diagonal, com um ponto dourado.
-const starPennant = (image) =>
-  image.map(0, 0, [
-    '.Y......',
-    '.HKKKKYK',
-    '.HgKKK..',
-    '.HggKK..',
-    '.HgggK..',
-    '.HgK....',
-    '.HK.....',
-    '.H......',
-  ]);
+const SIDE = { frameWidth: 32, frameHeight: 64 };
 
 // Sprites sem city aparecem em várias cidades e só usam SHARED_KEYS; os outros usam a paleta da
 // sua cidade.
 const sprites = {
   chico: {
-    frameWidth: 16,
-    frameHeight: 24,
-    frames: [
-      chicoRun(CHICO_LEGS[0], ARM_FORWARD),
-      chicoRun(CHICO_LEGS[1], []),
-      chicoRun(CHICO_LEGS[2], ARM_BACK),
-      chicoRun(CHICO_LEGS[3], []),
-      chicoJump,
-      chicoSlide,
-    ],
+    frameWidth: PERSON.width,
+    frameHeight: PERSON.height,
+    frames: [chicoRun(0), chicoRun(1), chicoRun(2), chicoRun(3), chicoJump, chicoSlide, chicoFront],
     animations: {
       run: { frames: [0, 1, 2, 3], frameRate: 10, repeat: -1 },
       jump: { frames: [4], frameRate: 1, repeat: 0 },
       slide: { frames: [5], frameRate: 1, repeat: 0 },
+      front: { frames: [6], frameRate: 1, repeat: 0 },
     },
   },
   caio: {
-    frameWidth: 16,
-    frameHeight: 24,
-    frames: [
-      caioRun(CHICO_LEGS[0], ARM_FORWARD),
-      caioRun(CHICO_LEGS[1], []),
-      caioRun(CHICO_LEGS[2], ARM_BACK),
-      caioRun(CHICO_LEGS[3], []),
-      caioFall,
-      caioBoard,
-    ],
+    frameWidth: PERSON.width,
+    frameHeight: PERSON.height,
+    frames: [caioRun(0), caioRun(1), caioRun(2), caioRun(3), caioFall, caioFront],
     animations: {
       run: { frames: [0, 1, 2, 3], frameRate: 12, repeat: -1 },
       fall: { frames: [4], frameRate: 1, repeat: 0 },
-      board: { frames: [5], frameRate: 1, repeat: 0 },
+      board: { frames: [1, 3], frameRate: 6, repeat: -1 },
+      front: { frames: [5], frameRate: 1, repeat: 0 },
     },
   },
-  aviao: { frameWidth: 64, frameHeight: 32, frames: [plane] },
+  aviao: { frameWidth: 160, frameHeight: 88, frames: [plane], doorHeight: PLANE_DOOR_HEIGHT },
   jornalista: {
-    frameWidth: 16,
-    frameHeight: 24,
-    frames: [
-      person({ h: 'H', f: 'P', s: 'B', p: 'N' }, MIC_DOWN),
-      person({ h: 'H', f: 'P', s: 'B', p: 'N' }, MIC_UP),
-    ],
+    frameWidth: PERSON.width,
+    frameHeight: PERSON.height,
+    frames: [reporter(false), reporter(true)],
     animations: { idle: { frames: [0, 1], frameRate: 3, repeat: -1 } },
   },
   guarda: {
-    frameWidth: 16,
-    frameHeight: 24,
-    frames: [
-      person({ h: 'K', f: 'P', s: 'N', p: 'K' }, SUNGLASSES),
-      person({ h: 'K', f: 'P', s: 'N', p: 'K' }, [...SUNGLASSES, ...ARM_OUT]),
-    ],
+    frameWidth: PERSON.width,
+    frameHeight: PERSON.height,
+    frames: [guard(false), guard(true)],
     animations: { idle: { frames: [0, 1], frameRate: 2, repeat: -1 } },
   },
-  cone: { city: 'brasilia', frameWidth: 16, frameHeight: 16, frames: [cone] },
-  faixa: { city: 'brasilia', frameWidth: 16, frameHeight: 32, frames: [banner] },
-  tapume: { city: 'brasilia', frameWidth: 16, frameHeight: 32, frames: [hoarding] },
-  'carro-oficial': { city: 'brasilia', frameWidth: 32, frameHeight: 16, frames: [officialCar] },
-  cerca: { city: 'assuncao', frameWidth: 16, frameHeight: 16, frames: [fence] },
-  barraca: { city: 'assuncao', frameWidth: 16, frameHeight: 32, frames: [stall] },
-  moto: { city: 'assuncao', frameWidth: 32, frameHeight: 16, frames: [motorbike] },
-  flamula: { city: 'assuncao', frameWidth: 8, frameHeight: 8, frames: [pennant] },
-  terere: { city: 'assuncao', frameWidth: 8, frameHeight: 8, frames: [terere] },
-  jornais: { city: 'buenos-aires', frameWidth: 16, frameHeight: 16, frames: [newspapers] },
-  banca: { city: 'buenos-aires', frameWidth: 16, frameHeight: 32, frames: [kioskSign] },
-  bonde: { city: 'buenos-aires', frameWidth: 32, frameHeight: 16, frames: [tram] },
-  'carro-70': { city: 'buenos-aires', frameWidth: 32, frameHeight: 16, frames: [seventiesCar] },
-  disco: { city: 'buenos-aires', frameWidth: 8, frameHeight: 8, frames: [vinyl] },
-  grade: { city: 'washington', frameWidth: 16, frameHeight: 16, frames: [barricade] },
-  fita: { city: 'washington', frameWidth: 16, frameHeight: 32, frames: [tape] },
-  viatura: { city: 'washington', frameWidth: 32, frameHeight: 16, frames: [patrolCar] },
-  nota: { city: 'washington', frameWidth: 8, frameHeight: 8, frames: [banknote] },
-  bandeirola: { city: 'washington', frameWidth: 8, frameHeight: 8, frames: [starPennant] },
-  moeda: {
-    frameWidth: 8,
-    frameHeight: 8,
-    frames: coinFrames,
-    animations: { spin: { frames: [0, 1], frameRate: 6, repeat: -1 } },
+  cone: { city: 'brasilia', ...LOW, frames: [cones] },
+  faixa: { city: 'brasilia', ...HIGH, frames: [banner] },
+  tapume: { city: 'brasilia', ...HIGH, frames: [hoarding] },
+  'carro-oficial': { city: 'brasilia', frameWidth: 44, frameHeight: 36, frames: [officialCar] },
+  'margem-brasilia': {
+    city: 'brasilia',
+    ...SIDE,
+    frames: [(image, x) => tree(image, x, 'G', 'g'), (image, x) => lamp(image, x, 'M')],
   },
-  bandeira: {
+  cerca: { city: 'assuncao', ...LOW, frames: [fence] },
+  barraca: { city: 'assuncao', ...HIGH, frames: [stall] },
+  moto: { city: 'assuncao', frameWidth: 24, frameHeight: 40, frames: [motorbike] },
+  flamula: { city: 'assuncao', frameWidth: 16, frameHeight: 16, frames: [twice(8, 8, pennant)] },
+  terere: { city: 'assuncao', frameWidth: 16, frameHeight: 16, frames: [twice(8, 8, terere)] },
+  'margem-assuncao': {
+    city: 'assuncao',
+    ...SIDE,
+    frames: [palm, (image, x) => tree(image, x, 'G', 'g')],
+  },
+  jornais: { city: 'buenos-aires', ...LOW, frames: [newspapers] },
+  banca: { city: 'buenos-aires', ...HIGH, frames: [kioskSign] },
+  bonde: { city: 'buenos-aires', frameWidth: 44, frameHeight: 60, frames: [tram] },
+  'carro-70': { city: 'buenos-aires', frameWidth: 44, frameHeight: 36, frames: [seventiesCar] },
+  disco: { city: 'buenos-aires', frameWidth: 16, frameHeight: 16, frames: [twice(8, 8, vinyl)] },
+  'margem-buenos-aires': {
+    city: 'buenos-aires',
+    ...SIDE,
+    frames: [(image, x) => tree(image, x, 'G', 'S'), (image, x) => lamp(image, x, 'K')],
+  },
+  grade: { city: 'washington', ...LOW, frames: [barricade] },
+  fita: { city: 'washington', ...HIGH, frames: [tape] },
+  viatura: { city: 'washington', frameWidth: 44, frameHeight: 36, frames: [patrolCar] },
+  nota: { city: 'washington', frameWidth: 16, frameHeight: 16, frames: [twice(8, 8, banknote)] },
+  bandeirola: {
+    city: 'washington',
     frameWidth: 16,
     frameHeight: 16,
-    frames: flagFrames,
+    frames: [twice(8, 8, starPennant)],
+  },
+  'margem-washington': {
+    city: 'washington',
+    ...SIDE,
+    frames: [(image, x) => tree(image, x, 'G', 'g'), (image, x) => lamp(image, x, 'K')],
+  },
+  moeda: {
+    frameWidth: 16,
+    frameHeight: 16,
+    frames: [coinFrame(7), coinFrame(5), coinFrame(2), coinFrame(5)],
+    animations: { spin: { frames: [0, 1, 2, 3], frameRate: 8, repeat: -1 } },
+  },
+  bandeira: {
+    frameWidth: 32,
+    frameHeight: 32,
+    frames: flagFrames.map((frame) => twice(16, 16, frame)),
     animations: { idle: { frames: [0, 1], frameRate: 4, repeat: -1 } },
   },
-  cartaz: { frameWidth: 16, frameHeight: 24, frames: [poster] },
-  mala: { frameWidth: 16, frameHeight: 16, frames: [moneyBag] },
-  'faixa-presidencial': { frameWidth: 16, frameHeight: 16, frames: [sash] },
+  cartaz: { frameWidth: 32, frameHeight: 48, frames: [twice(16, 24, poster)] },
+  mala: { frameWidth: 32, frameHeight: 32, frames: [twice(16, 16, moneyBag)] },
+  'faixa-presidencial': { frameWidth: 32, frameHeight: 32, frames: [twice(16, 16, sash)] },
 };
 
-// ---------- Fundos de Brasília (320 de largura, repetem na horizontal) ----------
+// ---------- Fundos (180 x 118, do céu ao horizonte; repetem na horizontal) ----------
+
+// A pista em perspectiva é desenhada pelo jogo (src/scenes/road.js); aqui ficam as três camadas
+// de paralaxe acima do horizonte: céu e monumento (far), prédios (mid) e vegetação rente (near).
+const BG = { width: 180, height: 118 };
+const background = () => createImage(BG.width, BG.height);
+
+// Senoides com número inteiro de ciclos na largura, para o fundo repetir sem emenda.
+const wave = (x, cycles) => Math.sin((x * cycles * 2 * Math.PI) / BG.width);
 
 function brasiliaFar() {
-  const image = createImage(320, 112);
-  image.rect(0, 0, 320, 40, 'S');
-  image.rect(0, 40, 320, 72, 'L');
-  image.ellipse(40, 20, 16, 4, 'W');
-  image.ellipse(52, 17, 9, 4, 'W');
-  image.ellipse(250, 28, 18, 4, 'W');
-  image.ellipse(270, 25, 8, 3, 'W');
-  // Congresso: plataforma, duas torres, cúpula e tigela invertida.
-  image.rect(90, 90, 150, 6, 'C');
-  image.rect(90, 95, 150, 1, 'M');
-  image.rect(155, 34, 7, 56, 'C');
-  image.rect(165, 34, 7, 56, 'C');
-  image.rect(161, 34, 1, 56, 'M');
-  image.rect(171, 34, 1, 56, 'M');
-  image.rect(155, 50, 17, 3, 'C');
-  image.halfDisc(122, 89, 14, 'C', 'top');
-  image.rect(108, 89, 29, 1, 'M');
-  image.halfDisc(210, 74, 18, 'C', 'bottom');
-  image.rect(192, 74, 37, 1, 'W');
-  image.rect(205, 88, 10, 2, 'M');
-  image.rect(0, 96, 320, 16, 'G');
+  const image = background();
+  image.rect(0, 0, 180, 62, 'S');
+  image.rect(0, 62, 180, 56, 'L');
+  image.ellipse(30, 22, 14, 4, 'W');
+  image.ellipse(40, 19, 8, 4, 'W');
+  image.ellipse(146, 34, 15, 4, 'W');
+  image.ellipse(158, 31, 7, 3, 'W');
+  // Congresso no fim do Eixo: plataforma, duas torres, cúpula e tigela invertida.
+  image.rect(40, 98, 100, 6, 'C');
+  image.rect(40, 103, 100, 1, 'M');
+  image.rect(83, 50, 6, 48, 'C');
+  image.rect(91, 50, 6, 48, 'C');
+  image.rect(88, 50, 1, 48, 'M');
+  image.rect(96, 50, 1, 48, 'M');
+  image.rect(83, 68, 14, 3, 'C');
+  image.halfDisc(62, 97, 11, 'C', 'top');
+  image.rect(51, 97, 23, 1, 'M');
+  image.halfDisc(118, 86, 13, 'C', 'bottom');
+  image.rect(105, 86, 27, 1, 'W');
+  image.rect(115, 96, 6, 2, 'M');
+  image.rect(0, 104, 180, 14, 'G');
   return image;
 }
 
+// Blocos da Esplanada dos Ministérios, dos dois lados do Eixo.
 function brasiliaMid() {
-  const image = createImage(320, 112);
-  // Blocos da Esplanada dos Ministérios, espaçados para repetir sem emenda.
-  for (let x = 4; x < 320; x += 40) {
-    image.rect(x, 70, 26, 28, 'C');
-    image.rect(x, 70, 26, 1, 'W');
-    image.rect(x + 25, 70, 1, 28, 'M');
-    for (let y = 73; y < 96; y += 3) image.rect(x + 2, y, 22, 1, 'M');
+  const image = background();
+  for (const x of [2, 30, 128, 156]) {
+    image.rect(x, 84, 22, 26, 'C');
+    image.rect(x, 84, 22, 1, 'W');
+    image.rect(x + 21, 84, 1, 26, 'M');
+    for (let y = 87; y < 108; y += 3) image.rect(x + 2, y, 18, 1, 'M');
   }
-  image.rect(0, 98, 320, 14, 'G');
+  image.rect(0, 110, 180, 8, 'G');
   return image;
 }
 
 function brasiliaNear() {
-  const image = createImage(320, 112);
-  image.rect(0, 102, 320, 10, 'g');
-  image.rect(0, 102, 320, 1, 'G');
-  // Árvores do Eixo Monumental.
-  for (const x of [30, 190]) {
-    image.rect(x - 1, 88, 3, 14, 'H');
-    image.ellipse(x, 82, 10, 8, 'G');
-    image.ellipse(x - 2, 80, 6, 4, 'g');
-  }
-  // Postes de luz.
-  for (const x of [110, 270]) {
-    image.rect(x, 72, 2, 30, 'M');
-    image.rect(x - 4, 72, 8, 2, 'M');
-    image.rect(x - 5, 74, 3, 2, 'Y');
-    image.rect(x + 3, 74, 3, 2, 'Y');
+  const image = background();
+  image.rect(0, 113, 180, 5, 'g');
+  for (const x of [14, 46, 134, 166]) {
+    image.ellipse(x, 108, 7, 6, 'G');
+    image.ellipse(x - 2, 106, 4, 3, 'g');
   }
   return image;
 }
-
-// Pista de três faixas: 68 px de altura, do meio-fio de cima ao de baixo.
-function brasiliaTrack() {
-  const image = createImage(320, 68);
-  image.rect(0, 0, 320, 68, 'A');
-  image.rect(0, 0, 320, 2, 'C');
-  image.rect(0, 2, 320, 1, 'M');
-  image.rect(0, 65, 320, 1, 'M');
-  image.rect(0, 66, 320, 2, 'C');
-  const random = rng(7);
-  for (let i = 0; i < 260; i += 1) {
-    image.set(Math.floor(random() * 320), 3 + Math.floor(random() * 62), 'M');
-  }
-  for (let x = 0; x < 320; x += 20) {
-    image.rect(x, 22, 12, 1, 'W');
-    image.rect(x, 42, 12, 1, 'W');
-  }
-  return image;
-}
-
-// ---------- Fundos de Assunção, Buenos Aires e Washington ----------
-
-// Pista de 68 px com meio-fio em cima e embaixo.
-function trackBase(ground, edge = 'M') {
-  const image = createImage(320, 68);
-  image.rect(0, 0, 320, 68, ground);
-  image.rect(0, 0, 320, 2, 'C');
-  image.rect(0, 2, 320, 1, edge);
-  image.rect(0, 65, 320, 1, edge);
-  image.rect(0, 66, 320, 2, 'C');
-  return image;
-}
-
-// Divisões tracejadas entre as três faixas.
-function laneLines(image, key = 'W', dash = 12, every = 20) {
-  for (let x = 0; x < 320; x += every) {
-    image.rect(x, 22, dash, 1, key);
-    image.rect(x, 42, dash, 1, key);
-  }
-  return image;
-}
-
-// Senoides com número inteiro de ciclos em 320 px, para o fundo repetir sem emenda.
-const wave = (x, cycles) => Math.sin((x * cycles * 2 * Math.PI) / 320);
 
 function assuncaoFar() {
-  const image = createImage(320, 112);
-  image.rect(0, 0, 320, 52, 'S');
-  image.rect(0, 52, 320, 30, 'L');
-  image.ellipse(250, 28, 10, 10, 'Y'); // sol da tarde
-  image.ellipse(90, 18, 18, 3, 'L');
-  image.ellipse(104, 15, 8, 3, 'L');
+  const image = background();
+  image.rect(0, 0, 180, 56, 'S');
+  image.rect(0, 56, 180, 34, 'L');
+  image.ellipse(140, 32, 10, 10, 'Y'); // sol da tarde
+  image.ellipse(50, 20, 18, 3, 'L');
+  image.ellipse(64, 17, 8, 3, 'L');
   // Morros do outro lado do rio.
-  for (let x = 0; x < 320; x += 1) {
+  for (let x = 0; x < 180; x += 1) {
     const height = Math.round(7 + 4 * wave(x, 2) + 2 * wave(x, 5));
-    image.rect(x, 82 - height, 1, height, 'G');
+    image.rect(x, 90 - height, 1, height, 'G');
   }
   // Rio com reflexos e margem de areia.
-  image.rect(0, 82, 320, 16, 'B');
-  image.rect(0, 82, 320, 1, 'N');
+  image.rect(0, 90, 180, 14, 'B');
+  image.rect(0, 90, 180, 1, 'N');
   const random = rng(11);
-  for (let i = 0; i < 40; i += 1) {
-    image.rect(Math.floor(random() * 316), 84 + Math.floor(random() * 12), 4, 1, 'L');
+  for (let i = 0; i < 24; i += 1) {
+    image.rect(Math.floor(random() * 176), 92 + Math.floor(random() * 10), 4, 1, 'L');
   }
-  image.rect(0, 98, 320, 14, 'C');
+  image.rect(0, 104, 180, 14, 'C');
   return image;
 }
 
 // Casario colonial de paredes claras e telhado de barro.
 function assuncaoMid() {
-  const image = createImage(320, 112);
-  for (let x = 6; x < 320; x += 64) {
-    image.rect(x, 74, 46, 26, 'C');
-    image.rect(x - 2, 69, 50, 1, 'H');
-    image.rect(x - 2, 70, 50, 4, 'O');
-    image.rect(x - 2, 74, 50, 1, 'H');
+  const image = background();
+  for (const x of [4, 130]) {
+    image.rect(x, 86, 46, 26, 'C');
+    image.rect(x - 2, 81, 50, 1, 'H');
+    image.rect(x - 2, 82, 50, 4, 'O');
+    image.rect(x - 2, 86, 50, 1, 'H');
     for (const dx of [5, 19, 33]) {
-      image.rect(x + dx, 79, 8, 12, 'H');
-      image.rect(x + dx + 1, 80, 6, 10, 'N');
-      image.rect(x + dx + 1, 85, 6, 1, 'H');
+      image.rect(x + dx, 91, 8, 12, 'H');
+      image.rect(x + dx + 1, 92, 6, 10, 'N');
+      image.rect(x + dx + 1, 97, 6, 1, 'H');
     }
   }
-  image.rect(0, 100, 320, 12, 'A');
-  image.rect(0, 100, 320, 1, 'H');
+  image.rect(0, 112, 180, 6, 'A');
+  image.rect(0, 112, 180, 1, 'H');
   return image;
 }
 
-// Palmeiras na calçada.
 function assuncaoNear() {
-  const image = createImage(320, 112);
-  image.rect(0, 102, 320, 10, 'C');
-  image.rect(0, 102, 320, 1, 'H');
-  for (const x of [50, 210]) {
-    for (let y = 66; y < 102; y += 1) {
-      const bend = Math.round(Math.sin((y - 66) / 12) * 2);
-      image.rect(x + bend, y, 3, 1, y % 4 === 0 ? 'K' : 'H');
-    }
-    for (const [dx, dy, length] of [
-      [-1, -1, 14],
-      [1, -1, 14],
-      [-1, 0, 16],
-      [1, 0, 16],
-      [-1, 1, 10],
-      [1, 1, 10],
-    ]) {
-      for (let i = 0; i < length; i += 1) {
-        const y = 66 + dy * Math.round(i / 3) + Math.round((i * i) / 40);
-        image.rect(x + 1 + dx * i, y, 1, 2, i % 3 ? 'G' : 'g');
-      }
-    }
-    image.ellipse(x + 1, 67, 2, 2, 'H'); // cocos
+  const image = background();
+  image.rect(0, 114, 180, 4, 'g');
+  for (const x of [20, 58, 122, 160]) {
+    image.ellipse(x, 110, 8, 5, 'G');
+    image.ellipse(x + 2, 109, 4, 2, 'g');
   }
   return image;
 }
 
-// Paralelepípedos em fileiras desencontradas.
-function assuncaoTrack() {
-  const image = trackBase('A', 'H');
-  const random = rng(13);
-  for (let row = 0, y = 3; y < 65; row += 1, y += 4) {
-    image.rect(0, y, 320, 1, 'H');
-    for (let x = row % 2 ? 0 : 4; x < 320; x += 8) image.rect(x, y + 1, 1, 3, 'H');
-  }
-  for (let i = 0; i < 120; i += 1) {
-    image.set(Math.floor(random() * 320), 4 + Math.floor(random() * 60), 'C');
-  }
-  return laneLines(image);
-}
-
-// Céu lilás, prédios ao longe e o obelisco no meio da avenida.
+// Céu lilás, prédios ao longe e o obelisco no fim da avenida.
 function buenosAiresFar() {
-  const image = createImage(320, 112);
-  image.rect(0, 0, 320, 56, 'S');
-  image.rect(0, 56, 320, 40, 'L');
-  image.ellipse(60, 22, 20, 3, 'L');
-  image.ellipse(230, 14, 14, 3, 'L');
+  const image = background();
+  image.rect(0, 0, 180, 60, 'S');
+  image.rect(0, 60, 180, 44, 'L');
+  image.ellipse(40, 24, 18, 3, 'L');
+  image.ellipse(140, 16, 14, 3, 'L');
   const random = rng(23);
-  for (let x = 0; x < 320; x += 10) {
+  for (let x = 0; x < 180; x += 10) {
     const height = 8 + Math.floor(random() * 14);
-    image.rect(x, 96 - height, 9, height, 'M');
+    image.rect(x, 104 - height, 9, height, 'M');
   }
-  for (let j = 0; j < 5; j += 1) image.rect(160 - j, 21 + j, 1 + 2 * j, 1, 'C');
-  image.rect(156, 26, 9, 70, 'C');
-  image.rect(162, 22, 1, 74, 'M'); // lado na sombra
-  image.rect(159, 30, 2, 3, 'K'); // janelinha
-  image.rect(0, 96, 320, 16, 'g');
+  for (let j = 0; j < 5; j += 1) image.rect(90 - j, 29 + j, 1 + 2 * j, 1, 'C');
+  image.rect(86, 34, 9, 70, 'C');
+  image.rect(92, 30, 1, 74, 'M'); // lado na sombra
+  image.rect(89, 38, 2, 3, 'K'); // janelinha
+  image.rect(0, 104, 180, 14, 'g');
   return image;
 }
 
-// Prédios de estilo europeu, com mansardas e sacadas.
+// Prédios de estilo europeu, com mansardas e sacadas, dos dois lados da avenida.
 function buenosAiresMid() {
-  const image = createImage(320, 112);
-  for (let x = 8; x < 320; x += 80) {
-    image.rect(x, 56, 60, 44, 'C');
-    image.rect(x + 2, 44, 56, 8, 'N');
-    image.halfDisc(x + 30, 44, 8, 'N', 'top');
-    image.rect(x + 29, 33, 2, 4, 'K');
-    image.rect(x - 2, 52, 64, 4, 'M');
-    for (let wx = x + 6; wx < x + 56; wx += 9) image.rect(wx, 46, 3, 3, 'L');
-    for (let wy = 60; wy < 96; wy += 9) {
+  const image = background();
+  for (const x of [-6, 126]) {
+    image.rect(x, 68, 60, 44, 'C');
+    image.rect(x + 2, 56, 56, 8, 'N');
+    image.halfDisc(x + 30, 56, 8, 'N', 'top');
+    image.rect(x + 29, 45, 2, 4, 'K');
+    image.rect(x - 2, 64, 64, 4, 'M');
+    for (let wx = x + 6; wx < x + 56; wx += 9) image.rect(wx, 58, 3, 3, 'L');
+    for (let wy = 72; wy < 108; wy += 9) {
       for (let wx = x + 5; wx < x + 56; wx += 9) {
         image.rect(wx, wy, 5, 6, 'B');
         image.rect(wx - 1, wy + 6, 7, 1, 'K'); // sacada
       }
     }
   }
-  image.rect(0, 100, 320, 12, 'A');
+  image.rect(0, 112, 180, 6, 'A');
   return image;
 }
 
-// Jacarandás floridos e postes de luz.
+// Copas de jacarandás floridos.
 function buenosAiresNear() {
-  const image = createImage(320, 112);
-  image.rect(0, 102, 320, 10, 'g');
-  image.rect(0, 102, 320, 1, 'H');
-  for (const x of [40, 200]) {
-    image.rect(x - 1, 86, 3, 16, 'H');
-    image.ellipse(x, 78, 13, 9, 'G');
-    image.ellipse(x - 4, 75, 6, 4, 'S');
-    image.ellipse(x + 5, 80, 4, 3, 'L');
+  const image = background();
+  image.rect(0, 114, 180, 4, 'g');
+  for (const x of [18, 52, 128, 162]) {
+    image.ellipse(x, 108, 10, 7, 'G');
+    image.ellipse(x - 3, 106, 5, 3, 'S');
+    image.ellipse(x + 4, 110, 3, 2, 'L');
   }
-  for (const x of [120, 280]) {
-    image.rect(x, 70, 2, 32, 'K');
-    image.rect(x - 1, 66, 4, 1, 'K');
-    image.ellipse(x + 1, 68, 2, 2, 'Y');
-  }
-  return image;
-}
-
-// Avenida larga, com faixa de pedestres.
-function buenosAiresTrack() {
-  const image = trackBase('A');
-  const random = rng(29);
-  for (let i = 0; i < 200; i += 1) {
-    image.set(Math.floor(random() * 320), 3 + Math.floor(random() * 62), 'M');
-  }
-  laneLines(image, 'W', 16, 32);
-  for (let y = 5; y < 64; y += 4) image.rect(280, y, 24, 2, 'W');
   return image;
 }
 
 // Noite estrelada e a cúpula estilizada sobre um prédio de colunas.
 function washingtonFar() {
-  const image = createImage(320, 112);
-  image.rect(0, 0, 320, 80, 'S');
-  image.rect(0, 80, 320, 16, 'N');
+  const image = background();
+  image.rect(0, 0, 180, 88, 'S');
+  image.rect(0, 88, 180, 16, 'N');
   const random = rng(31);
-  for (let i = 0; i < 60; i += 1) {
-    image.set(Math.floor(random() * 320), Math.floor(random() * 70), random() < 0.3 ? 'Y' : 'W');
+  for (let i = 0; i < 40; i += 1) {
+    image.set(Math.floor(random() * 180), Math.floor(random() * 78), random() < 0.3 ? 'Y' : 'W');
   }
-  image.ellipse(270, 20, 7, 7, 'C'); // lua minguante
-  image.ellipse(273, 18, 6, 6, 'S');
-  image.rect(110, 78, 100, 18, 'C');
-  for (let x = 114; x < 208; x += 6) image.rect(x, 81, 2, 13, 'L');
-  for (let x = 117; x < 208; x += 12) image.rect(x, 85, 2, 3, 'O');
-  image.rect(140, 62, 40, 16, 'C');
-  for (let x = 142; x < 180; x += 4) image.rect(x, 64, 1, 12, 'L');
-  image.halfDisc(160, 62, 18, 'C', 'top');
-  for (const y of [50, 56]) image.rect(144, y, 32, 1, 'L');
-  image.rect(157, 38, 6, 6, 'C');
-  image.rect(159, 34, 2, 4, 'C');
-  image.rect(0, 96, 320, 16, 'G');
+  image.ellipse(150, 22, 7, 7, 'C'); // lua minguante
+  image.ellipse(153, 20, 6, 6, 'S');
+  image.rect(40, 86, 100, 18, 'C');
+  for (let x = 44; x < 138; x += 6) image.rect(x, 89, 2, 13, 'L');
+  for (let x = 47; x < 138; x += 12) image.rect(x, 93, 2, 3, 'O');
+  image.rect(70, 70, 40, 16, 'C');
+  for (let x = 72; x < 110; x += 4) image.rect(x, 72, 1, 12, 'L');
+  image.halfDisc(90, 70, 18, 'C', 'top');
+  for (const y of [58, 64]) image.rect(74, y, 32, 1, 'L');
+  image.rect(87, 46, 6, 6, 'C');
+  image.rect(89, 42, 2, 4, 'C');
+  image.rect(0, 104, 180, 14, 'G');
   return image;
 }
 
-// Prédios do governo com frontão e colunas, janelas acesas e árvores entre eles.
+// Prédios do governo com frontão e colunas e janelas acesas, dos dois lados da avenida.
 function washingtonMid() {
-  const image = createImage(320, 112);
-  for (let x = 4; x < 320; x += 80) {
-    for (let j = 0; j < 8; j += 1) image.rect(x + 26 - j * 3, 58 + j, 1 + j * 6, 1, 'L');
-    image.rect(x, 66, 52, 28, 'L');
+  const image = background();
+  for (const x of [-4, 132]) {
+    for (let j = 0; j < 8; j += 1) image.rect(x + 26 - j * 3, 72 + j, 1 + j * 6, 1, 'L');
+    image.rect(x, 80, 52, 28, 'L');
     for (let column = x + 3; column < x + 50; column += 7) {
-      image.rect(column, 68, 2, 26, 'C');
-      if (column + 3 < x + 50) image.rect(column + 3, 72, 2, 4, 'O');
+      image.rect(column, 82, 2, 26, 'C');
+      if (column + 3 < x + 50) image.rect(column + 3, 86, 2, 4, 'O');
     }
-    image.rect(x - 2, 94, 56, 4, 'C');
-    image.ellipse(x + 66, 90, 5, 6, 'G');
-    image.rect(x + 66, 94, 1, 6, 'H');
+    image.rect(x - 2, 108, 56, 4, 'C');
   }
-  image.rect(0, 98, 320, 14, 'A');
+  image.rect(0, 112, 180, 6, 'A');
   return image;
 }
 
-// Calçada com postes, táxi amarelo, viatura com a sirene acesa e hidrante.
+// Sebes e um hidrante na calçada.
 function washingtonNear() {
-  const image = createImage(320, 112);
-  image.rect(0, 102, 320, 10, 'M');
-  image.rect(0, 102, 320, 1, 'C');
-  for (const x of [30, 230]) {
-    image.rect(x, 72, 2, 30, 'K');
-    image.rect(x - 3, 70, 8, 2, 'K');
-    image.rect(x - 2, 72, 6, 2, 'Y');
-  }
-  car(image, 70, 91, 'Y', [
-    [14, -1, 'O'],
-    [15, -1, 'O'],
-  ]);
-  car(image, 130, 91, 'W', [
-    [13, -1, 'R'],
-    [14, -1, 'R'],
-    [16, -1, 'B'],
-    [17, -1, 'B'],
-  ]);
-  image.rect(270, 95, 4, 7, 'R');
-  image.rect(269, 97, 6, 1, 'R');
-  image.rect(271, 94, 2, 1, 'K');
+  const image = background();
+  image.rect(0, 114, 180, 4, 'M');
+  image.rect(0, 114, 180, 1, 'C');
+  for (const x of [16, 50, 130, 164]) image.ellipse(x, 110, 9, 5, 'G');
+  image.rect(70, 109, 4, 6, 'R');
+  image.rect(69, 111, 6, 1, 'R');
   return image;
-}
-
-// Asfalto escuro, faixas amarelas e tampas de bueiro.
-function washingtonTrack() {
-  const image = trackBase('A');
-  const random = rng(37);
-  for (let i = 0; i < 160; i += 1) {
-    image.set(Math.floor(random() * 320), 3 + Math.floor(random() * 62), 'M');
-  }
-  for (const [x, y] of [
-    [60, 12],
-    [180, 54],
-    [250, 32],
-  ]) {
-    image.ellipse(x, y, 4, 2, 'K');
-    image.ellipse(x, y, 3, 1, 'M');
-  }
-  return laneLines(image, 'Y');
 }
 
 // ---------- Fonte pixelada (maiúsculas, com acentos do português e do espanhol) ----------
@@ -1377,6 +1304,7 @@ for (const [key, def] of Object.entries(sprites)) {
     frameWidth: def.frameWidth,
     frameHeight: def.frameHeight,
     frames: def.frames.length,
+    ...(def.doorHeight ? { doorHeight: def.doorHeight } : {}),
     ...(def.animations ? { animations: def.animations } : {}),
   };
 }
@@ -1386,20 +1314,10 @@ writeFileSync(
 );
 
 const backgrounds = {
-  brasilia: { far: brasiliaFar, mid: brasiliaMid, near: brasiliaNear, track: brasiliaTrack },
-  assuncao: { far: assuncaoFar, mid: assuncaoMid, near: assuncaoNear, track: assuncaoTrack },
-  'buenos-aires': {
-    far: buenosAiresFar,
-    mid: buenosAiresMid,
-    near: buenosAiresNear,
-    track: buenosAiresTrack,
-  },
-  washington: {
-    far: washingtonFar,
-    mid: washingtonMid,
-    near: washingtonNear,
-    track: washingtonTrack,
-  },
+  brasilia: { far: brasiliaFar, mid: brasiliaMid, near: brasiliaNear },
+  assuncao: { far: assuncaoFar, mid: assuncaoMid, near: assuncaoNear },
+  'buenos-aires': { far: buenosAiresFar, mid: buenosAiresMid, near: buenosAiresNear },
+  washington: { far: washingtonFar, mid: washingtonMid, near: washingtonNear },
 };
 for (const [cityId, layers] of Object.entries(backgrounds)) {
   for (const [layer, draw] of Object.entries(layers)) {

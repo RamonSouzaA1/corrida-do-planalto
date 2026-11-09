@@ -22,6 +22,7 @@
       "#6b3e26"
     ],
     "background": "brasilia",
+    "road": { "ground": [7, 6], "surface": 8, "curb": [1, 13], "line": 1, "runwayLine": 11 },
     "obstacles": [
       { "id": "cone", "type": "low", "sprite": "cone" },
       { "id": "faixa", "type": "high", "sprite": "faixa" },
@@ -57,6 +58,7 @@
       "#6b3e26"
     ],
     "background": "assuncao",
+    "road": { "ground": [7, 6], "surface": 8, "curb": [10, 15], "line": 1, "runwayLine": 11 },
     "obstacles": [
       { "id": "cerca", "type": "low", "sprite": "cerca" },
       { "id": "barraca", "type": "high", "sprite": "barraca" },
@@ -94,6 +96,7 @@
       "#6b3e26"
     ],
     "background": "buenos-aires",
+    "road": { "ground": [10, 9], "surface": 8, "curb": [1, 0], "line": 1, "runwayLine": 11 },
     "obstacles": [
       { "id": "jornais", "type": "low", "sprite": "jornais" },
       { "id": "banca", "type": "high", "sprite": "banca" },
@@ -132,6 +135,7 @@
       "#6b3e26"
     ],
     "background": "washington",
+    "road": { "ground": [6, 2], "surface": 8, "curb": [9, 10], "line": 11, "runwayLine": 1 },
     "obstacles": [
       { "id": "grade", "type": "low", "sprite": "grade" },
       { "id": "fita", "type": "high", "sprite": "fita" },

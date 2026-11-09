@@ -13,7 +13,7 @@ Teste `npm run test:smoke`, projeto `mobile` (Chromium com o perfil do Pixel 7, 
 - [x] O jogo abre, inicia com um toque na tela e roda alguns segundos sem erros de console.
 - [x] Gestos de arrastar (esquerda, direita, cima, baixo) chegam à corrida sem erro.
 - [x] O botão de pausa aparece em aparelho de toque; tocar nele pausa a pista e tocar na tela retoma.
-- [x] A área de jogo cabe na tela e mantém 16:9 em computador (1280x720), celular em paisagem
+- [x] A área de jogo cabe na tela e mantém 9:16 em computador (1280x720), celular em paisagem
       (844x390) e em retrato (390x844), inclusive ao mudar o tamanho com a corrida em andamento.
 - [x] O manifesto do aplicativo e os dois ícones são servidos.
 - [x] `npx cap add android` e `npx cap add ios` geram `android/` e `ios/` a partir de `dist/`.

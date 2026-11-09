@@ -10,7 +10,7 @@ const LANGUAGES = { brasilia: 'pt', assuncao: 'es', 'buenos-aires': 'es', washin
 // branco, azul-marinho, azul, verde, cinza, amarelo, vermelho, pele e marrom). Elas são iguais em
 // todas as cidades, para que cada cenário continue com no máximo 16 cores na tela.
 const SHARED_SLOTS = [0, 1, 2, 3, 7, 9, 11, 13, 14, 15];
-const BACKGROUND_LAYERS = ['far', 'mid', 'near', 'track'];
+const BACKGROUND_LAYERS = ['far', 'mid', 'near'];
 
 const byId = (id) => cities.find((city) => city.id === id);
 
@@ -47,7 +47,7 @@ describe('cities.json', () => {
     expect(byId(id).language).toBe(LANGUAGES[id]);
   });
 
-  it.each(ORDER)('%s tem 1.000 m e um fundo com as quatro camadas', (id) => {
+  it.each(ORDER)('%s tem 1.000 m e um fundo com as três camadas', (id) => {
     const city = byId(id);
     expect(city.lengthMeters).toBe(1000);
     for (const layer of BACKGROUND_LAYERS) {
